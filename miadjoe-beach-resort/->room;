@@ -1,0 +1,35 @@
+[90m= [39m[34;4mApp\Models\Reservation[39;24m {#6543
+    [34mid[39m: [35m1[39m,
+    [34mclient_id[39m: [35m1[39m,
+    [34mcheck_in[39m: "[32m2025-11-05[39m",
+    [34mcheck_out[39m: "[32m2025-11-07[39m",
+    [34mnb_personnes[39m: [35m0[39m,
+    [34mlit_dappoint[39m: [35m0[39m,
+    [34mstatut[39m: "[32mEn attente[39m",
+    [34mmode_reservation[39m: "[32mInterne[39m",
+    [34mtotal[39m: "[32m118000.00[39m",
+    [34mcreated_at[39m: "[32m2025-11-05 14:34:36[39m",
+    [34mupdated_at[39m: "[32m2025-11-05 14:34:36[39m",
+    [34mcreated_by[39m: [35m1[39m,
+    [34mupdated_by[39m: [36mnull[39m,
+    [34mroom[39m: [36mnull[39m,
+    [34mrooms[39m: [34;4mIlluminate\Database\Eloquent\Collection[39;24m {#6980
+      [34mall[39m: [
+        [34;4mApp\Models\Room[39;24m {#6963
+          [34mid[39m: [35m1[39m,
+          [34mnumero[39m: "[32mA2[39m",
+          [34mroom_type_id[39m: [35m1[39m,
+          [34mstatut[39m: "[32mLibre[39m",
+          [34mdescription[39m: "",
+          [34mprix_personnalise[39m: [36mnull[39m,
+          [34mcreated_at[39m: "[32m2025-11-05 14:33:50[39m",
+          [34mupdated_at[39m: "[32m2025-11-05 14:34:36[39m",
+          [34mpivot[39m: [34;4mIlluminate\Database\Eloquent\Relations\Pivot[39;24m {#6965
+            [34mreservation_id[39m: [35m1[39m,
+            [34mroom_id[39m: [35m1[39m,
+          },
+        },
+      ],
+    },
+  }
+

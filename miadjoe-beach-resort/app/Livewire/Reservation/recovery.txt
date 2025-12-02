@@ -1,0 +1,196 @@
+<?php
+
+namespace App\Livewire\Reservation;
+
+use Livewire\Component;
+use App\Models\Payment;
+use App\Models\User;
+use App\Models\CashAccount;
+use Barryvdh\DomPDF\Facade\Pdf;
+
+class HistoriquePaiementCaisseReservation extends Component
+{
+    // Soldes réels (Caisse)
+    public $soldeEspMomoReel = 0;
+    public $soldeTPEReel = 0;
+    public $soldeVirementReel = 0;
+
+    // Soldes basés sur les paiements filtrés
+    public $soldeEspMomo = 0;
+    public $soldeTPE = 0;
+    public $soldeVirement = 0;
+
+    // KPI
+    public $kpiEspMomo = 0;
+    public $kpiTPE = 0;
+    public $kpiVirement = 0;
+
+    public $caisseBrute = 0;
+
+    // Caisse d’hier
+    public $caisseHier;
+
+    // Filtres
+    public $filterDateType = 'perso';
+    public $filterStartDate;
+    public $filterEndDate;
+    public $filterMonth;
+    public $filterYear;
+    public $filterWeek;
+    public $filterMode = '';
+    public $filterUser = '';
+
+    public $users;
+
+    public function mount()
+    {
+        $this->users = User::select('id','name')->get();
+
+        $this->filterDateType = 'perso';
+        $this->filterStartDate = date('Y-m-d 00:00:00');
+        $this->filterEndDate   = date('Y-m-d 23:59:59');
+
+        $this->filterYear = date('Y');
+        $this->filterMonth = date('m');
+        $this->filterWeek = date('W');
+
+        $this->loadSoldeReel();
+        $this->caisseHier = $this->getCaisseHier();
+    }
+
+    // Chargement uniquement des soldes réels
+    public function loadSoldeReel()
+    {
+        $this->soldeEspMomoReel = CashAccount::where('type_caisse', 'Hébergement')
+            ->whereIn('nom_compte', ['Espèces','Mobile Money'])
+            ->sum('solde');
+
+        $this->soldeTPEReel = CashAccount::where('type_caisse', 'Hébergement')
+            ->where('nom_compte', 'Carte/TPE')
+            ->sum('solde');
+
+        $this->soldeVirementReel = CashAccount::where('type_caisse', 'Hébergement')
+            ->where('nom_compte', 'Virement')
+            ->sum('solde');
+    }
+
+    public function getFilteredPayments()
+    {
+        $allowedRoles = ['Direction', 'Comptable', 'Réception', 'Caisse'];
+        $query = Payment::with(['reservation.client', 'user']);
+
+        switch ($this->filterDateType) {
+            case 'mois':
+                $query->whereYear('created_at', $this->filterYear)
+                      ->whereMonth('created_at', $this->filterMonth);
+                break;
+            case 'annee':
+                $query->whereYear('created_at', $this->filterYear);
+                break;
+            case 'semaine':
+                $query->whereYear('created_at', $this->filterYear)
+                      ->whereRaw('WEEK(created_at, 1) = ?', [$this->filterWeek]);
+                break;
+            case 'perso':
+                if ($this->filterStartDate && $this->filterEndDate) {
+                    $query->whereBetween('created_at', [$this->filterStartDate, $this->filterEndDate]);
+                }
+                break;
+        }
+
+        if ($this->filterMode) {
+            $query->where('mode_paiement', $this->filterMode);
+        }
+
+        if ($this->filterUser) {
+            $query->where('user_id', $this->filterUser);
+        }
+
+        $query->where(function($q) use ($allowedRoles) {
+            $q->whereNotNull('reservation_id')
+              ->orWhere(function($sub) use ($allowedRoles) {
+                  $sub->whereNotNull('divers_service_vente_id')
+                      ->whereHas('user.roles', function($roleQuery) use ($allowedRoles) {
+                          $roleQuery->whereIn('name', $allowedRoles);
+                      });
+              });
+        });
+
+        return $query->orderBy('created_at', 'desc')->get();
+    }
+
+    public function getCaisseHier()
+    {
+        $hier = date('Y-m-d', strtotime('-1 day'));
+
+        return CashAccount::where('type_caisse', 'Hébergement')
+            ->selectRaw('
+                SUM(CASE WHEN nom_compte IN ("Espèces","Mobile Money") THEN solde END) as esp_momo,
+                SUM(CASE WHEN nom_compte = "Carte/TPE" THEN solde END) as tpe,
+                SUM(CASE WHEN nom_compte = "Virement" THEN solde END) as virement
+            ')
+            ->whereDate('updated_at', '<=', $hier)
+            ->first();
+    }
+
+    public function exportPdf()
+    {
+        $payments = $this->getFilteredPayments();
+
+        $caisseBrute = $payments->sum('montant');
+
+        $pdf = Pdf::loadView('pdf.caisse-historique', [
+            'payments' => $payments,
+            'caisseBrute' => $caisseBrute,
+            'kpiEspMomo' => $payments->whereIn('mode_paiement', ['Espèces','Mobile Money'])->sum('montant'),
+            'kpiTPE' => $payments->where('mode_paiement','Carte/TPE')->sum('montant'),
+            'kpiVirement' => $payments->where('mode_paiement','Virement')->sum('montant'),
+            'filters' => [
+                'type' => $this->filterDateType,
+                'month' => $this->filterMonth,
+                'year' => $this->filterYear,
+                'week' => $this->filterWeek,
+                'start' => $this->filterStartDate,
+                'end' => $this->filterEndDate,
+                'mode' => $this->filterMode
+            ]
+        ]);
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            "caisse_historique.pdf"
+        );
+    }
+
+    public function render()
+    {
+        $payments = $this->getFilteredPayments();
+
+        // Calcul des soldes filtrés et KPI
+        $this->soldeEspMomo = $payments->whereIn('mode_paiement', ['Espèces','Mobile Money'])->sum('montant');
+        $this->soldeTPE = $payments->where('mode_paiement','Carte/TPE')->sum('montant');
+        $this->soldeVirement = $payments->where('mode_paiement','Virement')->sum('montant');
+
+        $this->kpiEspMomo = $this->soldeEspMomo;
+        $this->kpiTPE = $this->soldeTPE;
+        $this->kpiVirement = $this->soldeVirement;
+
+        $this->caisseBrute = $payments->sum('montant');
+
+        return view('livewire.reservation.historique-paiement-caisse-reservation', [
+            'payments' => $payments,
+            'caisseBrute' => $this->caisseBrute,
+            'soldeEspMomo' => $this->soldeEspMomo,
+            'soldeTPE' => $this->soldeTPE,
+            'soldeVirement' => $this->soldeVirement,
+            'soldeEspMomoReel' => $this->soldeEspMomoReel,
+            'soldeTPEReel' => $this->soldeTPEReel,
+            'soldeVirementReel' => $this->soldeVirementReel,
+            'caisseHier' => $this->caisseHier,
+            'kpiEspMomo' => $this->kpiEspMomo,
+            'kpiTPE' => $this->kpiTPE,
+            'kpiVirement' => $this->kpiVirement,
+            'users' => $this->users,
+        ]);
+    }
+}

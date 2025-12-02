@@ -1,0 +1,583 @@
+<div class="p-4 md:p-6 bg-gray-50 min-h-screen">
+
+    <!-- =======================
+         HEADER & BOUTONS
+    ======================== -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">
+                📊 Historique Paiements Vente
+            </h1>
+            <p class="text-gray-600 mt-1">Gestion et suivi des transactions de vente</p>
+        </div>
+        
+        <div class="flex flex-wrap gap-3">
+            <button wire:click="exportPdf"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i>
+                Exporter PDF
+            </button>
+            
+            <button wire:click="loadData"
+                    class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition duration-200 flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i>
+                Actualiser
+            </button>
+        </div>
+    </div>
+
+    <!-- =======================
+         FILTRES MODERNES
+    ======================== -->
+    <div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3 md:mb-0">
+                <i class="fas fa-filter mr-2"></i>Filtres
+            </h2>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Type de période -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Période</label>
+                <select wire:model="filterDateType"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="jour">Aujourd'hui</option>
+                    <option value="mois">Mensuel</option>
+                    <option value="annee">Annuel</option>
+                    <option value="semaine">Hebdomadaire</option>
+                    <option value="perso">Personnalisé</option>
+                </select>
+            </div>
+
+            <!-- Filtres dynamiques -->
+            @if($filterDateType === 'mois')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mois</label>
+                    <select wire:model="filterMonth" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        @foreach(range(1,12) as $m)
+                            <option value="{{ $m }}">{{ date("F", mktime(0,0,0,$m,1)) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            @if($filterDateType === 'semaine')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Semaine</label>
+                    <select wire:model="filterWeek" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        @foreach(range(1,52) as $w)
+                            <option value="{{ $w }}">Semaine {{ $w }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            <!-- Année pour tous sauf perso -->
+            @if($filterDateType != 'perso')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Année</label>
+                    <select wire:model="filterYear" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        @foreach(range(date('Y')-5, date('Y')+1) as $y)
+                            <option value="{{ $y }}">{{ $y }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            @if($filterDateType === 'perso')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+                    <input type="date" wire:model="filterStartDate"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+                    <input type="date" wire:model="filterEndDate"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            @endif
+
+            <!-- Mode de paiement -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement</label>
+                <select wire:model="filterMode"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Tous les modes</option>
+                    <option value="Espèces">Espèces</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                    <option value="Carte/TPE">Carte/TPE</option>
+                    <option value="Virement">Virement</option>
+                    <option value="Offert">Offert</option>
+                </select>
+            </div>
+
+            <!-- Utilisateur -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur</label>
+                <select wire:model="filterUser"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Tous les utilisateurs</option>
+                    @foreach($users as $user)
+                        <option value="{{ $user->id }}">{{ $user->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================
+         KPI MODERNES
+    ======================== -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Caisse Brute -->
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white hover-lift">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-orange-100 text-sm">Caisse Brute (Filtré)</p>
+                    <h3 class="text-2xl font-bold mt-1">
+                        {{ number_format($caisseBrute, 0, ',', ' ') }} FCFA
+                    </h3>
+                    <p class="text-orange-200 text-xs mt-2">
+                        {{ $payments->count() }} transaction(s)
+                    </p>
+                </div>
+                <div class="bg-orange-400 p-3 rounded-full">
+                    <i class="fas fa-cash-register text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Espèces/Mobile Money -->
+        <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white hover-lift">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-green-100 text-sm">Espèces + Mobile Money</p>
+                    <h3 class="text-2xl font-bold mt-1">
+                        {{ number_format($kpiEspMomo, 0, ',', ' ') }} FCFA
+                    </h3>
+                    @if($caisseHier)
+                        <p class="text-green-200 text-xs mt-2">
+                            Hier: {{ number_format($caisseHier['esp_momo'] ?? 0, 0, ',', ' ') }} FCFA
+                        </p>
+                    @endif
+                </div>
+                <div class="bg-green-400 p-3 rounded-full">
+                    <i class="fas fa-money-bill-wave text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-green-400">
+                <p class="text-sm">
+                    Solde réel: {{ number_format($soldeEspMomo, 0, ',', ' ') }} FCFA
+                </p>
+            </div>
+        </div>
+
+        <!-- Carte/TPE -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white hover-lift">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-blue-100 text-sm">Carte/TPE</p>
+                    <h3 class="text-2xl font-bold mt-1">
+                        {{ number_format($kpiTPE, 0, ',', ' ') }} FCFA
+                    </h3>
+                    @if($caisseHier)
+                        <p class="text-blue-200 text-xs mt-2">
+                            Hier: {{ number_format($caisseHier['tpe'] ?? 0, 0, ',', ' ') }} FCFA
+                        </p>
+                    @endif
+                </div>
+                <div class="bg-blue-400 p-3 rounded-full">
+                    <i class="fas fa-credit-card text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-blue-400">
+                <p class="text-sm">
+                    Solde réel: {{ number_format($soldeTPE, 0, ',', ' ') }} FCFA
+                </p>
+            </div>
+        </div>
+
+        <!-- Virement -->
+        <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white hover-lift">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-purple-100 text-sm">Virement</p>
+                    <h3 class="text-2xl font-bold mt-1">
+                        {{ number_format($kpiVirement, 0, ',', ' ') }} FCFA
+                    </h3>
+                    @if($caisseHier)
+                        <p class="text-purple-200 text-xs mt-2">
+                            Hier: {{ number_format($caisseHier['virement'] ?? 0, 0, ',', ' ') }}  FCFA
+                        </p>
+                    @endif
+                </div>
+                <div class="bg-purple-400 p-3 rounded-full">
+                    <i class="fas fa-university text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-purple-400">
+                <p class="text-sm">
+                    Solde réel: {{ number_format($soldeVirement, 0, ',', ' ') }} FCFA
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================
+     TOTAL ENCAISSEMENTS
+======================= -->
+<div class="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-5 text-white mb-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <p class="text-indigo-100 text-sm">Total des Encaissements</p>
+            <h3 class="text-2xl font-bold mt-1">
+                {{ number_format($kpiEncaissementsTotal, 0, ',', ' ') }} FCFA
+            </h3>
+            <p class="text-indigo-200 text-xs mt-2">
+                {{ count($encaissements) }} encaissement(s)
+            </p>
+        </div>
+        <div class="bg-indigo-400 p-3 rounded-full">
+            <i class="fas fa-money-bill-trend-up text-xl"></i>
+        </div>
+    </div>
+</div>
+
+    <!-- =======================
+         TAB NAVIGATION
+    ======================== -->
+    <div class="mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button wire:click="$set('activeTab', 'paiements')"
+                        class="{{ $activeTab === 'paiements' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} py-2 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-receipt mr-2"></i>
+                    Paiements Vente ({{ $payments->count() }})
+                </button>
+                <button wire:click="$set('activeTab', 'encaissements')"
+                        class="{{ $activeTab === 'encaissements' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} py-2 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-download mr-2"></i>
+                    Encaissements ({{ count($encaissements) }})
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- =======================
+         TAB CONTENT - PAIEMENTS
+    ======================== -->
+    @if(!isset($activeTab) || $activeTab === 'paiements')
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-receipt"></i>
+                Historique des paiements de vente
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">{{ $payments->count() }} paiement(s) trouvé(s)</p>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remise</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
+                    </tr>
+                </thead>
+                
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($payments as $payment)
+                        <tr class="hover:bg-gray-50 transition duration-150">
+                            <!-- ID -->
+                            <td class="px-4 py-3 font-mono text-sm text-gray-600">
+                                #{{ $payment->id }}
+                            </td>
+                            
+                            <!-- DATE -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ $payment->created_at->format('d/m/Y') }}</div>
+                                <div class="text-xs text-gray-500">{{ $payment->created_at->format('H:i') }}</div>
+                            </td>
+                            
+                            <!-- CLIENT -->
+                            <td class="px-4 py-3">
+                                @if($payment->sale?->client)
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ $payment->sale->client->nom }}
+                                    </div>
+                                    @if($payment->sale->client->telephone)
+                                        <div class="text-xs text-gray-500">{{ $payment->sale->client->telephone }}</div>
+                                    @endif
+                                @elseif($payment->reservation?->client)
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ $payment->reservation->client->nom }}
+                                    </div>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
+                            
+                            <!-- TYPE -->
+                            <td class="px-4 py-3">
+                                @if($payment->sale_id)
+                                    <span class="text-sm font-medium text-blue-600">
+                                        Vente #{{ $payment->sale_id }}
+                                    </span>
+                                @elseif($payment->divers_service_vente_id)
+                                    <span class="text-sm font-medium text-amber-600">
+                                        Service Divers #{{ $payment->divers_service_vente_id }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
+                            
+                            <!-- MODE DE PAIEMENT -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                @php
+                                    $modeColors = [
+                                        'Espèces' => 'bg-green-100 text-green-800',
+                                        'Mobile Money' => 'bg-blue-100 text-blue-800',
+                                        'Carte/TPE' => 'bg-purple-100 text-purple-800',
+                                        'Virement' => 'bg-indigo-100 text-indigo-800',
+                                        'Offert' => 'bg-gray-100 text-gray-800'
+                                    ];
+                                    $color = $modeColors[$payment->mode_paiement] ?? 'bg-gray-100 text-gray-800';
+                                @endphp
+                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $color }}">
+                                    {{ $payment->mode_paiement }}
+                                </span>
+                            </td>
+                            
+                            <!-- MONTANT -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="text-sm font-bold text-gray-900">
+                                    {{ number_format($payment->montant, 0, ',', ' ') }} FCFA
+                                </div>
+                            </td>
+                            
+                            <!-- REMISE -->
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-red-500">
+                                {{ number_format($payment->remise_amount, 0, ',', ' ') }} FCFA
+                            </td>
+                            
+                            <!-- UTILISATEUR -->
+                            <td class="px-4 py-3">
+                                <div class="text-sm text-gray-900">
+                                    {{ $payment->user?->name ?? 'Système' }}
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="px-4 py-12 text-center">
+                                <div class="text-gray-400">
+                                    <i class="fas fa-search fa-3x mb-4"></i>
+                                    <p class="text-lg font-medium text-gray-500">Aucun paiement trouvé</p>
+                                    <p class="text-sm mt-2">Ajustez vos filtres pour voir plus de résultats</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- PIED DE TABLEAU -->
+        @if($payments->count() > 0)
+            <div class="px-5 py-3 bg-gray-50 border-t border-gray-200">
+                <div class="flex justify-between items-center">
+                    <p class="text-sm text-gray-600">
+                        Total: <span class="font-bold">{{ number_format($payments->sum('montant'), 0, ',', ' ') }} FCFA</span>
+                    </p>
+                    <p class="text-sm text-gray-600">
+                        Dernière mise à jour: {{ now()->format('d/m/Y H:i') }}
+                    </p>
+                </div>
+            </div>
+        @endif
+    </div>
+    @endif
+
+    <!-- =======================
+         TAB CONTENT - ENCAISSEMENTS
+    ======================== -->
+    @if(isset($activeTab) && $activeTab === 'encaissements')
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-hand-holding-usd"></i>
+                Historique des Encaissements Restaurant
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">{{ count($encaissements) }} encaissement(s)</p>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Décaisseur</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Encaisseur</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
+                    </tr>
+                </thead>
+                
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse ($encaissements as $e)
+                        @if ($e instanceof \App\Models\Disbursement)
+                            <!-- Encaissements CLASSIQUES -->
+                            <tr class="hover:bg-gray-50 transition duration-150">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    @if($e->encaisse_at)
+                                        <div class="text-sm text-gray-900">
+                                            {{ \Carbon\Carbon::parse($e->encaisse_at)->format('d/m/Y') }}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            {{ \Carbon\Carbon::parse($e->encaisse_at)->format('H:i') }}
+                                        </div>
+                                    @else
+                                        <div class="text-sm text-gray-400">--</div>
+                                    @endif
+                                </td>
+                                
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="text-sm font-bold text-green-600">
+                                        {{ number_format($e->montant, 0, ',', ' ') }} FCFA
+                                    </div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    @if($e->reservation_id)
+                                        <div class="text-sm text-gray-900">Réservation #{{ $e->reservation_id }}</div>
+                                    @else
+                                        <div class="text-sm text-gray-400">Décaissement dans la caisse hébergement</div>
+                                    @endif
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">
+                                        {{ $e->user?->name ?? '--' }}
+                                    </div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">
+                                        {{ $e->encaisseur->name ?? '--' }}
+                                    </div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">
+                                        {{ $e->cashAccount->nom_compte ?? '--' }}
+                                    </div>
+                                </td>
+                            </tr>
+                        @elseif ($e instanceof \App\Models\HorsVente)
+                            <!-- Encaissements HORS VENTE -->
+                            <tr class="hover:bg-gray-50 transition duration-150 bg-amber-50">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                        {{ $e->created_at->format('d/m/Y') }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ $e->created_at->format('H:i') }}
+                                    </div>
+                                </td>
+                                
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="text-sm font-bold text-green-600">
+                                        {{ number_format($e->montant, 0, ',', ' ') }} FCFA
+                                    </div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">Hors Vente</div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-400">--</div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">
+                                        {{ $e->user->name ?? '--' }}
+                                    </div>
+                                </td>
+                                
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">
+                                        {{ $e->mode_paiement ?? '--' }}
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
+                    @empty
+                        <tr>
+                            <td colspan="6" class="px-4 py-12 text-center">
+                                <div class="text-gray-400">
+                                    <i class="fas fa-cash-register fa-3x mb-4"></i>
+                                    <p class="text-lg font-medium text-gray-500">Aucun encaissement trouvé</p>
+                                    <p class="text-sm mt-2">Ajustez vos filtres pour voir plus de résultats</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- PIED DE TABLEAU ENCAISSEMENTS -->
+        @if(count($encaissements) > 0)
+            <div class="px-5 py-3 bg-gray-50 border-t border-gray-200">
+                <div class="flex justify-between items-center">
+                    <p class="text-sm text-gray-600">
+                        Total Encaissements: <span class="font-bold">{{ number_format(collect($encaissements)->sum('montant'), 0, ',', ' ') }} FCFA</span>
+                    </p>
+                    <p class="text-sm text-gray-600">
+                        {{ count($encaissements) }} transaction(s)
+                    </p>
+                </div>
+            </div>
+        @endif
+    </div>
+    @endif
+    
+    <!-- INDICATEUR DE CHARGEMENT -->
+    <div wire:loading class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-xl">
+            <div class="flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span class="text-lg font-medium text-gray-700">Chargement des données...</span>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        select, input {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</div>
