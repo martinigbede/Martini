@@ -48,6 +48,75 @@
                     </div>
                 </div>
 
+                <div class="relative group bg-green-400 p-3 rounded-full cursor-pointer">
+                    <i class="fas fa-money-bill-wave text-xl">Hébergement</i>
+
+                    <!-- Menu flottant -->
+                    <div class="absolute right-0 mt-2 hidden group-hover:block bg-white text-gray-800 shadow-lg border rounded-lg w-56 p-4 z-50">
+                        <h4 class="font-semibold text-sm mb-2">Détails des comptes</h4>
+
+                        <div class="text-sm space-y-1">
+                            <p>Espèces : 
+                                <span class="font-bold">
+                                {{ number_format( \App\Models\CashAccount::where('nom_compte','Espèces')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Mobile Money : 
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Mobile Money')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Flooz : 
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Flooz')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Mix by Yas :
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Mix by Yas')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative group bg-green-400 p-3 rounded-full cursor-pointer">
+                    <i class="fas fa-money-bill-wave text-xl">Restaurant</i>
+
+                    <!-- Menu flottant -->
+                    <div class="absolute right-0 mt-2 hidden group-hover:block bg-white text-gray-800 shadow-lg border rounded-lg w-56 p-4 z-50">
+                        <h4 class="font-semibold text-sm mb-2">Détails des comptes</h4>
+
+                        <div class="text-sm space-y-1">
+                            <p>Espèces : 
+                                <span class="font-bold">
+                                {{ number_format( \App\Models\CashAccount::where('nom_compte','Espèces')->where('type_caisse','Restaurant')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Mobile Money : 
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Mobile Money')->where('type_caisse','Restaurant')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Flooz : 
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Flooz')->where('type_caisse','Restaurant')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Mix by Yas :
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Mix by Yas')->where('type_caisse','Restaurant')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Boutons d'action --}}
                 <div class="flex gap-3 ml-auto flex-wrap">
                     {{-- PDF --}}

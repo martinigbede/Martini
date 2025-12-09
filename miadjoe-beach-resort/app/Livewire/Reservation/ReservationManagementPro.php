@@ -36,8 +36,7 @@ class ReservationManagementPro extends Component
     // Nouveau pour le modal de notification client
     public $showNotifyModal = false;
     public $notifyReservationId = null;
-
-    
+    protected $poll = 5000; // rafraîchit toutes les 5 secondes  
 
     protected $listeners = [
         'reservationSaved' => 'refreshList',
@@ -68,6 +67,7 @@ class ReservationManagementPro extends Component
     public function refreshList()
     {
         $this->resetPage();
+        $this->loadStats();
     }
 
     public function loadStats()

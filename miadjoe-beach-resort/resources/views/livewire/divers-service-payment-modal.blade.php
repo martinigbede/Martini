@@ -79,13 +79,12 @@
                 {{-- Mode de paiement --}}
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700">Mode de paiement</label>
-                    <select 
-                        wire:model="modePaiement"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1"
-                    >
+                    <select wire:model="modePaiement" class="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1" >
                         <option value="Espèces">Espèces</option>
+                        <option value="Flooz">Flooz</option>
+                        <option value="Mix by Yas">Mix by Yas</option>
                         <option value="Mobile Money">Mobile Money</option>
-                        <option value="TPE/Carte">TPE / Carte</option>
+                        <option value="Carte/TPE">Carte/TPE</option>
                         <option value="Virement">Virement</option>
                     </select>
                 </div>

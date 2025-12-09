@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\CashAccount;
+use App\Models\Disbursement;
 use App\Models\CashAccountTransaction;
 use Illuminate\Support\Facades\DB;
 
@@ -31,13 +32,21 @@ class HistoriquePaiementCaisseReservation extends Component
     public $filterStartDate;
     public $filterEndDate;
     public $caisseHier = ['esp_momo' => 0, 'tpe' => 0, 'virement' => 0,];
+    public $decaissements = [];
+    public $activeTab = 'paiements';
 
     public $filterMode = '';
     public $filterUser = '';
     public $users;
+    public $kpiDecaissementsTotal = 0;
 
-    // Encaissements
-    public $encaissements;
+    protected $listeners = [
+        'decaissementEffectue' => 'actualiserDonnees',
+    ];
+    public function actualiserDonnees()
+    {
+        $this->loadData(); 
+    }
 
     public function mount()
     {
@@ -56,7 +65,7 @@ class HistoriquePaiementCaisseReservation extends Component
 
         // Soldes réels par mode de paiement (caisse)
         $this->soldeEspMomo = CashAccount::where('type_caisse', 'Hébergement')
-            ->whereIn('nom_compte', ['Espèces','Mobile Money'])
+            ->whereIn('nom_compte', ['Espèces','Mobile Money','Flooz', 'Mix by Yas'])
             ->sum('solde');
 
         $this->soldeTPE = CashAccount::where('type_caisse', 'Hébergement')
@@ -67,15 +76,29 @@ class HistoriquePaiementCaisseReservation extends Component
             ->where('nom_compte', 'Virement')
             ->sum('solde');
 
-        // KPI basés sur les paiements filtrés
-        $this->kpiEspMomo = $this->payments->whereIn('mode_paiement', ['Espèces', 'Mobile Money'])->sum('montant');
-        $this->kpiTPE = $this->payments->where('mode_paiement', 'Carte/TPE')->sum('montant');
-        $this->kpiVirement = $this->payments->where('mode_paiement', 'Virement')->sum('montant');
+        // KPI basés sur les paiements filtrés mais uniquement ceux Payés
+        $this->kpiEspMomo = $this->payments
+            ->where('statut', 'Payé')
+            ->whereIn('mode_paiement', ['Espèces', 'Mobile Money', 'Semoa', 'Flooz', 'Mix by Yas'])
+            ->sum('montant');
+
+        $this->kpiTPE = $this->payments
+            ->where('statut', 'Payé')
+            ->where('mode_paiement', 'Carte/TPE')
+            ->sum('montant');
+
+        $this->kpiVirement = $this->payments
+            ->where('statut', 'Payé')
+            ->where('mode_paiement', 'Virement')
+            ->sum('montant');
+        
+        $this->kpiDecaissementsTotal = collect($this->decaissements)->sum('montant');
 
         // Caisse brute sur tous les paiements filtrés
         $this->caisseBrute = $this->payments->sum('montant');
 
         $this->loadCaisseHier();
+        $this->loadDecaissements();
     }
 
     public function loadCaisseHier()
@@ -89,7 +112,7 @@ class HistoriquePaiementCaisseReservation extends Component
             ->get();
 
         $espMomo = $transactions
-            ->whereIn('cashAccount.nom_compte', ['Espèces', 'Mobile Money'])
+            ->whereIn('cashAccount.nom_compte', ['Espèces', 'Mobile Money', 'Semoa', 'Flooz', 'Mix by Yas'])
             ->sum(function($t) { 
                 return $t->type_operation === 'entree' ? $t->montant : -$t->montant;
             });
@@ -111,6 +134,65 @@ class HistoriquePaiementCaisseReservation extends Component
             'tpe' => $tpe,
             'virement' => $virement,
         ];
+    }
+
+    public function loadDecaissements()
+    {
+        $hebergementId = CashAccount::where('type_caisse', 'Hébergement')->pluck('id')->toArray();
+
+        $query = Disbursement::with(['user', 'encaisseur', 'cashAccount'])
+            ->whereIn('caisse_source_id', $hebergementId); // <- correction ici
+
+        // Filtres par date
+        switch ($this->filterDateType) {
+            case 'jour':
+                $query->whereDate('created_at', now()->toDateString());
+                break;
+
+            case 'mois':
+                $query->whereYear('created_at', $this->filterYear)
+                    ->whereMonth('created_at', $this->filterMonth);
+                break;
+
+            case 'annee':
+                $query->whereYear('created_at', $this->filterYear);
+                break;
+
+            case 'semaine':
+                $query->whereYear('created_at', $this->filterYear)
+                    ->whereRaw('WEEK(created_at, 1) = ?', [$this->filterWeek]);
+                break;
+
+            case 'perso':
+                if ($this->filterStartDate && $this->filterEndDate) {
+                    $query->whereBetween('created_at', [$this->filterStartDate, $this->filterEndDate]);
+                }
+                break;
+        }
+
+        // Filtre utilisateur (personne ayant effectué le décaissement)
+        if ($this->filterUser) {
+            $query->where('user_id', $this->filterUser);
+        }
+
+        // Récupération des résultats filtrés
+        $this->decaissements = $query->orderByDesc('created_at')->get();
+
+        // KPI basé sur les objets
+        $this->kpiDecaissementsTotal = $this->decaissements->sum('montant');
+
+        // Transformation des données pour la vue
+        $this->decaissements = $this->decaissements->map(function ($d) {
+            return [
+                'id'         => $d->id,
+                'date'       => $d->created_at,
+                'montant'    => $d->montant,
+                'reference'  => $d->reservation_id ? 'Réservation #'.$d->reservation_id : 'Décaissement libre',
+                'decaisseur' => $d->user->name ?? null,
+                'encaisseur' => $d->encaisseur->name ?? null,
+                'mode'       => $d->cashAccount->nom_compte ?? null,
+            ];
+        });
     }
 
     public function getFilteredPayments()   
@@ -153,13 +235,16 @@ class HistoriquePaiementCaisseReservation extends Component
 
         // Paiements réservations et services divers
         $query->where(function($q) use ($allowedRoles) {
+            // Tous les paiements liés à une réservation (même user_id null)
             $q->whereNotNull('reservation_id')
-              ->orWhere(function($sub) use ($allowedRoles) {
-                  $sub->whereNotNull('divers_service_vente_id')
-                      ->whereHas('user.roles', function($roleQuery) use ($allowedRoles) {
-                          $roleQuery->whereIn('name', $allowedRoles);
-                      });
-              });
+
+            // OU paiements divers/services associés à un user autorisé
+            ->orWhere(function($sub) use ($allowedRoles) {
+                $sub->whereNotNull('divers_service_vente_id')
+                    ->whereHas('user.roles', function($roleQuery) use ($allowedRoles) {
+                        $roleQuery->whereIn('name', $allowedRoles);
+                    });
+            });
         });
 
         return $query->orderBy('created_at', 'desc')->get();
@@ -202,6 +287,7 @@ class HistoriquePaiementCaisseReservation extends Component
             'soldeTPE' => $this->soldeTPE,
             'soldeVirement' => $this->soldeVirement,
             'caisseHier' => $this->caisseHier,
+            'decaissements' => $this->decaissements,
             'users' => $this->users,
         ]);
     }

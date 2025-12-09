@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SemoaPaymentNotification;
 
 class SemoaCallbackController extends Controller
 {
@@ -145,6 +147,20 @@ class SemoaCallbackController extends Controller
                 'invoice_id' => $invoice->id ?? null
             ]);
         });
+
+        if ($state === 'PAID') {
+            try {
+                Mail::to([
+                        //'reservations@miadjoebeachresort.com',
+                        //'reservationmiadjoebeachresort@gmail.com',
+                        //'marouwaine81@gmail.com',
+                        //'direction@miadjoebeachresort.com',
+                        'martinigbede@gmail.com'
+                    ])->send(new SemoaPaymentNotification($reservation, $payment, $data));
+            } catch (\Throwable $e) {
+                Log::error('Erreur envoi email SEMOA: ' . $e->getMessage());
+            }
+        }
 
         // -----------------------------------------
         // AJOUT AUTOMATIQUE EN CAISSE SI PAYÉ

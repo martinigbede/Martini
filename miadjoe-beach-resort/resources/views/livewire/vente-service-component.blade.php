@@ -67,7 +67,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-brown-900">{{ number_format($vente->total, 2) }} FCFA</td>
                         <td class="px-4 py-2">
-                            @if($vente->statut === 'payé')
+                            @if($vente->statut === 'Payé')
                                 <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Payée</span>
                             @else
                                 <span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">En attente</span>

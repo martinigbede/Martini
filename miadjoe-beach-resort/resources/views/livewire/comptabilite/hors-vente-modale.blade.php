@@ -31,7 +31,9 @@
                         <label class="block font-semibold mb-1">Mode de paiement</label>
                         <select wire:model="mode_paiement" class="w-full border rounded px-3 py-2">
                             <option value="Espèces">Espèces</option>
-                            <option value="Mobile Money">Mobile Money</option>
+                            <option value="Flooz">Flooz</option>
+                            <option value="Mix by Yas">Mix by Yas</option>
+
                         </select>
                         @error('mode_paiement')
                             <p class="text-red-600 text-sm">{{ $message }}</p>

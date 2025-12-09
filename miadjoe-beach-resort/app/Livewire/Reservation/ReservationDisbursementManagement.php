@@ -122,6 +122,7 @@ class ReservationDisbursementManagement extends Component
             'montant' => $reste,
             'user_id' => Auth::id(),
             'cash_account_id' => $compte->id,
+            'caisse_source_id' => $compte->id,
         ]);
 
         session()->flash('success', "Décaissement de ".number_format($reste,0,',',' ')." FCFA effectué !");

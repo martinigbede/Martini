@@ -102,6 +102,7 @@
                                         <th class="px-4 py-2 text-center border-b border-brown-200">Unité</th>
                                         <th class="px-4 py-2 text-center border-b border-brown-200">Qté</th>
                                         <th class="px-4 py-2 text-right border-b border-brown-200">Prix U.</th>
+                                        <th class="px-4 py-2 text-right border-b border-brown-200">Remise</th>
                                         <th class="px-4 py-2 text-right border-b border-brown-200">Total</th>
                                     </tr>
                                 </thead>
@@ -116,6 +117,17 @@
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2 text-right text-brown-600">{{ number_format($item['prix_unitaire'], 2) }} FCFA</td>
+                                            <td class="px-4 py-2 text-right text-brown-600">
+                                                @if($item['est_offert'])
+                                                    Offert
+                                                @elseif($item['remise_type'] === 'pourcentage')
+                                                    {{ $item['remise_valeur'] }} %
+                                                @elseif($item['remise_type'] === 'montant')
+                                                    - {{ number_format($item['remise_valeur'], 0) }} CFA
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-2 text-right font-semibold text-green-600">{{ number_format($item['total'], 2) }} FCFA</td>
                                         </tr>
                                     @empty

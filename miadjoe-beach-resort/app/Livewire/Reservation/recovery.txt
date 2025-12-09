@@ -3,194 +3,410 @@
 namespace App\Livewire\Reservation;
 
 use Livewire\Component;
-use App\Models\Payment;
-use App\Models\User;
-use App\Models\CashAccount;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Client;
+use App\Models\Room;
+use App\Models\RoomType;
+use App\Models\Reservation;
+use App\Services\ReservationService;
+use App\Services\ReservationCalculator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
-class HistoriquePaiementCaisseReservation extends Component
+class ReservationFormPro extends Component
 {
-    // Soldes réels (Caisse)
-    public $soldeEspMomoReel = 0;
-    public $soldeTPEReel = 0;
-    public $soldeVirementReel = 0;
+    public ?int $reservationId = null;
+    public $showModal = true;
+    public $selectedRoomToAdd = null;
 
-    // Soldes basés sur les paiements filtrés
-    public $soldeEspMomo = 0;
-    public $soldeTPE = 0;
-    public $soldeVirement = 0;
+    // --- CLIENTS ---
+    public $clients = [];
+    public $selectedClientId = null;
+    public $isNewClient = false;
 
-    // KPI
-    public $kpiEspMomo = 0;
-    public $kpiTPE = 0;
-    public $kpiVirement = 0;
+    public $client_nom;
+    public $client_prenom;
+    public $client_email;
+    public $client_telephone;
 
-    public $caisseBrute = 0;
+    // --- RÉSERVATION ---
+    public $room_ids = [];
+    public $rooms = [];
+    public $roomTypes = [];
+    public $check_in;
+    public $check_out;
+    public $nb_personnes = 1;
+    public $lit_dappoint = false;
+    public $nb_lits_dappoint = 0;
+    public $statut = 'En attente';
+    public $mode_reservation = 'Interne';
 
-    // Caisse d’hier
-    public $caisseHier;
+    // --- CALCUL ---
+    public $total = 0;
+    public $days = 0;
+    public $amount_due = 0;
 
-    // Filtres
-    public $filterDateType = 'perso';
-    public $filterStartDate;
-    public $filterEndDate;
-    public $filterMonth;
-    public $filterYear;
-    public $filterWeek;
-    public $filterMode = '';
-    public $filterUser = '';
+    // --- Items granulaire ---
+    public $reservationItems = [];
 
-    public $users;
+    protected $listeners = ['refreshReservationFormPro' => '$refresh'];
 
-    public function mount()
+    // === INITIALISATION ===
+    public function mount(?int $reservationId = null)
     {
-        $this->users = User::select('id','name')->get();
+        $this->reservationId = $reservationId;
+        $this->clients = Client::orderBy('nom')->get();
+        $this->rooms = Room::with('roomType')->orderBy('numero')->get();
+        $this->roomTypes = RoomType::all();
 
-        $this->filterDateType = 'perso';
-        $this->filterStartDate = date('Y-m-d 00:00:00');
-        $this->filterEndDate   = date('Y-m-d 23:59:59');
-
-        $this->filterYear = date('Y');
-        $this->filterMonth = date('m');
-        $this->filterWeek = date('W');
-
-        $this->loadSoldeReel();
-        $this->caisseHier = $this->getCaisseHier();
-    }
-
-    // Chargement uniquement des soldes réels
-    public function loadSoldeReel()
-    {
-        $this->soldeEspMomoReel = CashAccount::where('type_caisse', 'Hébergement')
-            ->whereIn('nom_compte', ['Espèces','Mobile Money'])
-            ->sum('solde');
-
-        $this->soldeTPEReel = CashAccount::where('type_caisse', 'Hébergement')
-            ->where('nom_compte', 'Carte/TPE')
-            ->sum('solde');
-
-        $this->soldeVirementReel = CashAccount::where('type_caisse', 'Hébergement')
-            ->where('nom_compte', 'Virement')
-            ->sum('solde');
-    }
-
-    public function getFilteredPayments()
-    {
-        $allowedRoles = ['Direction', 'Comptable', 'Réception', 'Caisse'];
-        $query = Payment::with(['reservation.client', 'user']);
-
-        switch ($this->filterDateType) {
-            case 'mois':
-                $query->whereYear('created_at', $this->filterYear)
-                      ->whereMonth('created_at', $this->filterMonth);
-                break;
-            case 'annee':
-                $query->whereYear('created_at', $this->filterYear);
-                break;
-            case 'semaine':
-                $query->whereYear('created_at', $this->filterYear)
-                      ->whereRaw('WEEK(created_at, 1) = ?', [$this->filterWeek]);
-                break;
-            case 'perso':
-                if ($this->filterStartDate && $this->filterEndDate) {
-                    $query->whereBetween('created_at', [$this->filterStartDate, $this->filterEndDate]);
-                }
-                break;
+        // ✅ S'assurer que nb_personnes >= 1
+        if (!$this->nb_personnes || $this->nb_personnes < 1) {
+            $this->nb_personnes = 1;
         }
 
-        if ($this->filterMode) {
-            $query->where('mode_paiement', $this->filterMode);
+        if ($reservationId) {
+            $this->loadReservation($reservationId);
         }
-
-        if ($this->filterUser) {
-            $query->where('user_id', $this->filterUser);
-        }
-
-        $query->where(function($q) use ($allowedRoles) {
-            $q->whereNotNull('reservation_id')
-              ->orWhere(function($sub) use ($allowedRoles) {
-                  $sub->whereNotNull('divers_service_vente_id')
-                      ->whereHas('user.roles', function($roleQuery) use ($allowedRoles) {
-                          $roleQuery->whereIn('name', $allowedRoles);
-                      });
-              });
-        });
-
-        return $query->orderBy('created_at', 'desc')->get();
     }
 
-    public function getCaisseHier()
+    // === OUTILS ===
+    public function calculateItemTotal($roomTypeId, $nb_personnes, $nb_lits_dappoint, $nb_jours)
     {
-        $hier = date('Y-m-d', strtotime('-1 day'));
+        $roomType = RoomType::find($roomTypeId);
 
-        return CashAccount::where('type_caisse', 'Hébergement')
-            ->selectRaw('
-                SUM(CASE WHEN nom_compte IN ("Espèces","Mobile Money") THEN solde END) as esp_momo,
-                SUM(CASE WHEN nom_compte = "Carte/TPE" THEN solde END) as tpe,
-                SUM(CASE WHEN nom_compte = "Virement" THEN solde END) as virement
-            ')
-            ->whereDate('updated_at', '<=', $hier)
-            ->first();
+        if (!$roomType) {
+            return 0;
+        }
+
+        $prix_base = $roomType->prix_nuit * $nb_jours;
+
+        // prix par lit d’appoint
+        $prix_lit_dappoint = $roomType->prix_lit_dappoint ?? 0;
+
+        $total_lits = $nb_lits_dappoint * $prix_lit_dappoint * $nb_jours;
+
+        return $prix_base + $total_lits;
     }
 
-    public function exportPdf()
+    // === GESTION CLIENT ===
+    private function onClientChange()
     {
-        $payments = $this->getFilteredPayments();
+        if ($this->selectedClientId === 'new') {
+            $this->isNewClient = true;
+            $this->resetClientFields();
+        } elseif ($this->selectedClientId) {
+            $this->isNewClient = false;
+            $client = Client::find($this->selectedClientId);
+            if ($client) {
+                $this->client_nom = $client->nom;
+                $this->client_prenom = $client->prenom;
+                $this->client_email = $client->email;
+                $this->client_telephone = $client->telephone;
+            }
+        }
+    }
 
-        $caisseBrute = $payments->sum('montant');
+    private function resetClientFields()
+    {
+        $this->client_nom = '';
+        $this->client_prenom = '';
+        $this->client_email = '';
+        $this->client_telephone = '';
+    }
 
-        $pdf = Pdf::loadView('pdf.caisse-historique', [
-            'payments' => $payments,
-            'caisseBrute' => $caisseBrute,
-            'kpiEspMomo' => $payments->whereIn('mode_paiement', ['Espèces','Mobile Money'])->sum('montant'),
-            'kpiTPE' => $payments->where('mode_paiement','Carte/TPE')->sum('montant'),
-            'kpiVirement' => $payments->where('mode_paiement','Virement')->sum('montant'),
-            'filters' => [
-                'type' => $this->filterDateType,
-                'month' => $this->filterMonth,
-                'year' => $this->filterYear,
-                'week' => $this->filterWeek,
-                'start' => $this->filterStartDate,
-                'end' => $this->filterEndDate,
-                'mode' => $this->filterMode
-            ]
-        ]);
+    // === CHARGEMENT / ÉDITION ===
+    private function loadReservation($id)
+    {
+        $res = Reservation::with(['client', 'rooms', 'payments', 'items'])->findOrFail($id);
 
-        return response()->streamDownload(
-            fn () => print($pdf->output()),
-            "caisse_historique.pdf"
-        );
+        $this->selectedClientId = $res->client_id;
+        $this->isNewClient = false;
+
+        $this->client_nom = $res->client->nom;
+        $this->client_prenom = $res->client->prenom;
+        $this->client_email = $res->client->email;
+        $this->client_telephone = $res->client->telephone;
+
+        $this->check_in = $res->check_in;
+        $this->check_out = $res->check_out;
+        $this->nb_personnes = max(1, $res->nb_personnes);
+        $this->lit_dappoint = $res->lit_dappoint;
+        $this->nb_lits_dappoint = $res->nb_lits_dappoint;
+        $this->room_ids = $res->rooms->pluck('id')->toArray();
+        $this->statut = $res->statut;
+        $this->mode_reservation = $res->mode_reservation;
+        $this->total = $res->total;
+
+        // Items granulaire
+        $this->reservationItems = $res->items?->map(function ($item) {
+            return [
+                'room_id' => $item->room_id,
+                'nb_personnes' => max(1, $item->nb_personnes),
+                'lit_dappoint' => $item->lit_dappoint,
+                'nb_lits_dappoint' => $item->nb_lits_dappoint,
+                'prix_unitaire' => $item->prix_unitaire,
+                'total' => $item->total,
+                'quantite' => $item->quantite,
+            ];
+        })->toArray() ?? [];
+
+        $paid = $res->payments->sum('montant');
+        $this->amount_due = max(0, $res->total - $paid);
+    }
+
+    // === ACTIONS SUR LES CHAMBRES ===
+    public function addRoomToReservation()
+    {
+        if ($this->selectedRoomToAdd && !in_array($this->selectedRoomToAdd, $this->room_ids)) {
+            $room = $this->rooms->firstWhere('id', $this->selectedRoomToAdd);
+
+            $prix = $this->calculateItemTotal(
+                $room->roomType->id,
+                $this->nb_personnes,
+                $this->lit_dappoint,
+                $this->days
+            );
+
+            $this->reservationItems[] = [
+                'room_id' => $room->id,
+                'nb_personnes' => $this->nb_personnes,
+                'lit_dappoint' => false,
+                'nb_lits_dappoint' => 0,
+                'quantite' => 1,
+                'prix_unitaire' => $prix,
+                'total' => $prix,
+            ];
+
+            $this->room_ids[] = $room->id;
+            $this->selectedRoomToAdd = null;
+            $this->calculateTotal();
+        }
+    }
+
+    public function removeRoom($roomId)
+    {
+        $this->reservationItems = array_values(array_filter(
+            $this->reservationItems,
+            fn($item) => $item['room_id'] != $roomId
+        ));
+        $this->room_ids = array_values(array_filter($this->room_ids, fn($id) => $id != $roomId));
+        $this->calculateTotal();
+    }
+
+    // === CALCULS ===
+    public function calculateTotal()
+    {
+        if (!$this->check_in || !$this->check_out || empty($this->room_ids)) {
+            $this->total = $this->amount_due = $this->days = 0;
+            return;
+        }
+
+        try {
+            $this->days = ReservationCalculator::getDaysBetween($this->check_in, $this->check_out);
+            $total = 0;
+            $items = [];
+
+            foreach ($this->rooms->whereIn('id', $this->room_ids) as $room) {
+                $item = collect($this->reservationItems)->firstWhere('room_id', $room->id);
+
+                // Nombre de personnes et lit d’appoint
+                $nb = max(1, $item['nb_personnes'] ?? $this->nb_personnes);
+                $lit = $item['lit_dappoint'] ?? false;
+                $nb_lits_dappoint = $lit ? ($item['nb_lits_dappoint'] ?? 0) : 0;
+
+                // Calcul du prix : lit d’appoint seulement si activé
+                $prix = $this->calculateItemTotal(
+                    $room->roomType->id,
+                    $nb,
+                    $nb_lits_dappoint,
+                    $this->days
+                );
+
+                $items[] = [
+                    'room_id'          => $room->id,
+                    'quantite'         => 1,
+                    'nb_personnes'     => $nb,
+                    'lit_dappoint'     => $lit,
+                    'nb_lits_dappoint' => $nb_lits_dappoint,
+                    'prix_unitaire'    => $prix,
+                    'total'            => $prix,
+                ];
+
+                $total += $prix;
+            }
+
+            $this->reservationItems = $items;
+            $this->total = $total;
+
+            // Calcul du montant dû
+            if (!$this->isNewClient && $this->selectedClientId) {
+                $paid = Client::find($this->selectedClientId)
+                    ?->reservations()->with('payments')->get()
+                    ->sum(fn($r) => $r->payments->sum('montant')) ?? 0;
+
+                $this->amount_due = max(0, $this->total - $paid);
+            } else {
+                $this->amount_due = $this->total;
+            }
+
+        } catch (\Throwable $e) {
+            Log::error('Erreur calcul total : ' . $e->getMessage());
+            $this->total = $this->amount_due = $this->days = 0;
+            $this->reservationItems = [];
+        }
+    }
+
+    // === ACTIONS FORM ===
+    public function save()
+    {
+        Log::debug('=== ReservationFormPro::save() ===');
+        Log::debug('Avant validation');
+
+        // Force nb_personnes minimum avant validation
+        $this->nb_personnes = max(1, $this->nb_personnes);
+
+        $this->validate($this->rules());
+
+        $payload = [
+            'client_is_new' => $this->isNewClient,
+            'client_id' => $this->selectedClientId,
+            'client' => [
+                'nom' => $this->client_nom,
+                'prenom' => $this->client_prenom,
+                'email' => $this->client_email,
+                'telephone' => $this->client_telephone,
+            ],
+            'room_ids' => $this->room_ids,
+            'reservation_items' => $this->reservationItems,
+            'check_in' => $this->check_in,
+            'check_out' => $this->check_out,
+            'nb_personnes' => $this->nb_personnes,
+            'lit_dappoint' => $this->lit_dappoint,
+            'nb_lits_dappoint' => $this->nb_lits_dappoint,
+            'statut' => $this->statut,
+            'mode_reservation' => $this->mode_reservation,
+        ];
+
+        try {
+            Log::debug('Avant ReservationService');
+            $service = app(ReservationService::class);
+            $reservationModel = $this->reservationId ? Reservation::find($this->reservationId) : null;
+
+            Log::debug('ReservationModel', ['reservationId' => $this->reservationId, 'model' => $reservationModel]);
+
+            $result = $service->createOrUpdate($payload, $reservationModel);
+            Log::debug('Résultat service', ['result' => $result]);
+
+            if ($result['success']) {
+                // 🔄 Recalcule le total complet (hébergement + ventes liées)
+                $result['reservation']->recalculerTotal();
+
+                session()->flash('success', 'Réservation enregistrée avec succès !');
+                $this->dispatch('reservationSaved', $result['reservation']->id);
+                $this->dispatch('closeFormModal');
+            } else {
+                session()->flash('error', $result['message'] ?? 'Erreur lors de la sauvegarde.');
+            }
+        } catch (ValidationException $ve) {
+            $this->addError('validation', $ve->getMessage());
+            Log::error('❌ ValidationException dans save(): '.$ve->getMessage(), ['errors' => $ve->errors()]);
+        } catch (\Throwable $e) {
+            Log::error('Erreur ReservationFormPro::save(): '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            session()->flash('error', 'Une erreur est survenue : '.$e->getMessage());
+        }
+
+        Log::debug('=== Fin ReservationFormPro::save() ===');
+    }
+
+
+    // === INCRÉMENT / DÉCRÉMENT ===
+    public function incrementPersons($roomId = null)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if (!$roomId || $item['room_id'] == $roomId) $item['nb_personnes']++;
+        }
+        $this->calculateTotal();
+    }
+
+    public function decrementPersons($roomId = null)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if ((!$roomId || $item['room_id'] == $roomId) && $item['nb_personnes'] > 1) $item['nb_personnes']--;
+        }
+        $this->calculateTotal();
+    }
+
+    public function toggleLitDappoint($roomId)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if ($item['room_id'] == $roomId) $item['lit_dappoint'] = !$item['lit_dappoint'];
+        }
+        $this->calculateTotal();
+    }
+
+    public function incrementLitDappoint($roomId)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if ($item['room_id'] == $roomId && $item['lit_dappoint']) {
+                $item['nb_lits_dappoint']++;
+            }
+        }
+        $this->calculateTotal();
+    }
+
+    public function decrementLitDappoint($roomId)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if ($item['room_id'] == $roomId && $item['lit_dappoint']) {
+                $item['nb_lits_dappoint'] = max(0, $item['nb_lits_dappoint'] - 1);
+            }
+        }
+        $this->calculateTotal();
+    }
+
+    // === LIVEWIRE ===
+    public function updated($property)
+    {
+        // Force nb_personnes >= 1 en temps réel
+        if ($property === 'nb_personnes' && $this->nb_personnes < 1) {
+            $this->nb_personnes = 1;
+        }
+
+        if (str_starts_with($property, 'reservationItems.') ||
+            in_array($property, ['check_in', 'check_out', 'room_ids', 'nb_personnes', 'lit_dappoint'])) {
+            $this->calculateTotal();
+        }
+
+        if ($property === 'selectedClientId') {
+            $this->onClientChange();
+        }
+    }
+
+    public function closeModal()
+    {
+        $this->showModal = false;
+        $this->dispatch('closeFormModal');
+    }
+
+    protected function rules()
+    {
+        return [
+            'selectedClientId' => 'nullable',
+            'client_nom' => 'required_if:isNewClient,true|string',
+            'client_prenom' => 'required_if:isNewClient,true|string',
+            'client_email' => 'required_if:isNewClient,true|email',
+            'client_telephone' => 'required_if:isNewClient,true|string',
+            'check_in' => 'required|date',
+            'check_out' => 'required|date|after:check_in',
+            'nb_personnes' => 'required|integer|min:1',
+            'room_ids' => 'required|array|min:1',
+        ];
     }
 
     public function render()
     {
-        $payments = $this->getFilteredPayments();
-
-        // Calcul des soldes filtrés et KPI
-        $this->soldeEspMomo = $payments->whereIn('mode_paiement', ['Espèces','Mobile Money'])->sum('montant');
-        $this->soldeTPE = $payments->where('mode_paiement','Carte/TPE')->sum('montant');
-        $this->soldeVirement = $payments->where('mode_paiement','Virement')->sum('montant');
-
-        $this->kpiEspMomo = $this->soldeEspMomo;
-        $this->kpiTPE = $this->soldeTPE;
-        $this->kpiVirement = $this->soldeVirement;
-
-        $this->caisseBrute = $payments->sum('montant');
-
-        return view('livewire.reservation.historique-paiement-caisse-reservation', [
-            'payments' => $payments,
-            'caisseBrute' => $this->caisseBrute,
-            'soldeEspMomo' => $this->soldeEspMomo,
-            'soldeTPE' => $this->soldeTPE,
-            'soldeVirement' => $this->soldeVirement,
-            'soldeEspMomoReel' => $this->soldeEspMomoReel,
-            'soldeTPEReel' => $this->soldeTPEReel,
-            'soldeVirementReel' => $this->soldeVirementReel,
-            'caisseHier' => $this->caisseHier,
-            'kpiEspMomo' => $this->kpiEspMomo,
-            'kpiTPE' => $this->kpiTPE,
-            'kpiVirement' => $this->kpiVirement,
-            'users' => $this->users,
+        return view('livewire.reservation.reservation-form-pro', [
+            'clients' => $this->clients,
+            'rooms' => $this->rooms,
         ]);
     }
 }

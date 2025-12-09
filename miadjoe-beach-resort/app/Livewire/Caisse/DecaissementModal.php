@@ -41,6 +41,8 @@ class DecaissementModal extends Component
         $mapCompte = [
             'Espèces'      => ['Espèces'],
             'Mobile Money' => ['Mobile Money'],
+            'Flooz'        => ['Flooz'],
+            'Mix by Yas'   => ['Mix by Yas'],
         ];
 
         if (!isset($mapCompte[$this->mode])) {
@@ -78,6 +80,7 @@ class DecaissementModal extends Component
             'motif'            => $this->motif,
             'user_id'          => Auth::id(),
             'cash_account_id'  => $compte->id,
+            'caisse_source_id' => $compte->id,
             'est_encaisse'     => 0,
             'encaisse_user_id' => null,
             'encaisse_at'      => null,
@@ -88,6 +91,8 @@ class DecaissementModal extends Component
         // Fermer le modal + rafraîchir les données parent
         $this->show = false;
         $this->dispatch('refresh-data');
+        $this->dispatch('decaissementEffectue'); 
+        $this->dispatch('flashMessage', ['message' => 'Décaissement encaissé avec succès !', 'type' => 'success']);  
     }
 
     public function render()

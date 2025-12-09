@@ -15,7 +15,7 @@ class SaleDetailModal extends Component
     public array $saleData = [];
     public array $items = [];
     public ?float $payment_amount = null;
-    public string $payment_mode = 'Espèces';
+    public ?string $payment_mode = null;
     public float $total = 0;
     public ?float $reste_a_payer = null;
 
@@ -60,6 +60,9 @@ class SaleDetailModal extends Component
             'quantite' => $item->quantite,
             'prix_unitaire' => $item->prix_unitaire,
             'total' => $item->total,
+            'remise_type'    => $item->remise_type,
+            'remise_valeur'  => $item->remise_valeur,
+            'est_offert'     => $item->est_offert,
         ])->toArray();
 
         // --- Paiements liés à la vente
@@ -67,6 +70,7 @@ class SaleDetailModal extends Component
 
         // --- Total final à utiliser pour le calcul du reste
         $montantFinal = $sale->invoice?->montant_final ?? $sale->total;
+        $this->payment_mode = $sale->payments->last()?->mode_paiement ?? 'Espèces';
 
         $this->total = $montantFinal;
         $this->payment_amount = $totalPaid;
@@ -80,8 +84,14 @@ class SaleDetailModal extends Component
 
     public function generatePdf()
     {
-        $sale = Sale::with(['items.menu', 'reservation.client', 'reservation.room', 'payments', 'invoice'])
-            ->findOrFail($this->saleId);
+        $sale = Sale::with([
+            'items.menu', 
+            'reservation.client', 
+            'reservation.items.room', // Modifié pour accéder à room via items
+            'payments', 
+            'invoice',
+            
+        ])->findOrFail($this->saleId);
 
         // 🧾 Ne pas générer de facture pour les ventes liées à une réservation
         if ($sale->reservation_id) {
@@ -92,17 +102,39 @@ class SaleDetailModal extends Component
         $totalPaid = $sale->payments->sum('montant');
         $montantFinal = $sale->invoice?->montant_final ?? $sale->total;
 
+        // Calcul du reste à payer
+        $resteAPayer = max(0, $montantFinal - $totalPaid);
+        
+        // Récupération du dernier paiement
+        $lastPayment = $sale->payments->last();
+        
+        // Récupération du motif de remise s'il existe
+        $motifRemise = null;
+        if ($lastPayment && $lastPayment->motif_remise) {
+            $motifRemise = $lastPayment->motif_remise;
+        }
+
+        // Format ticket de caisse 80mm
         $pdf = Pdf::loadView('pdf.sale-receipt', [
             'sale' => $sale,
             'items' => $sale->items,
             'total' => $montantFinal,
-            'payment' => $sale->payments->last(),
-            'reste_a_payer' => max(0, $montantFinal - $totalPaid),
-        ])->setPaper('A5', 'portrait');
+            'payment_amount' => $totalPaid,
+            'reste_a_payer' => $resteAPayer,
+            'payment_mode' => $lastPayment->mode_paiement ?? 'Espèces',
+            'motif_remise' => $motifRemise,
+            // Informations pour les remises si facture existe
+            'invoice' => $sale->invoice,
+            'payments' => $sale->payments,
+        ])->setPaper([0, 0, 226.77, 1000], 'portrait'); // 80mm = 226.77 points
+
+        // Optionnel: forcer le téléchargement automatique
+        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf->setOption('isRemoteEnabled', true);
 
         return response()->streamDownload(
             fn() => print($pdf->output()),
-            "facture_vente_{$sale->id}.pdf"
+            "ticket_vente_{$sale->id}.pdf"
         );
     }
 

@@ -16,6 +16,7 @@ class Disbursement extends Model
         'est_encaisse', // booléen pour indiquer si le décaissement a été encaissé
         'encaisse_user_id', // utilisateur qui a encaissé le décaissement
         'cash_account_id', // compte de caisse utilisé pour l'encaissement
+        'caisse_source_id',
         'encaisse_at',
         'motif',
     ];

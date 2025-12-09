@@ -63,12 +63,13 @@ class ComptabiliteDashboard extends Component
 
             $especes = $groupe->where('nom_compte', 'Espèces')->first();
             $mobile = $groupe->where('nom_compte', 'Mobile Money')->first();
+            $flooz = $groupe->where('nom_compte', 'Flooz')->first();
+            $mix = $groupe->where('nom_compte', 'Mix by Yas')->first();
 
             return [
                 'type' => $groupe->first()->type_caisse,
 
-                'especes_reel' => ($especes ? $especes->solde : 0)
-                                + ($mobile ? $mobile->solde : 0),
+                'especes_reel' => ($especes ? $especes->solde : 0) + ($mobile ? $mobile->solde : 0) + ($flooz ? $flooz->solde : 0) + ($mix ? $mix->solde : 0),
 
                 'carte' => optional($groupe->where('nom_compte', 'Carte/TPE')->first())->solde ?? 0,
                 'virement' => optional($groupe->where('nom_compte', 'Virement')->first())->solde ?? 0,

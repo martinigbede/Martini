@@ -20,6 +20,8 @@ class DirectionDashboard extends Component
     public $totalRevenueRestaurant = 0;
     public $totalRevenueDivers = 0;
     public $totalRevenueGlobal = 0;
+    public $totalInvoicedAmount = 0;
+
 
     public $totalPayments = 0;
     public $totalDue = 0;
@@ -35,7 +37,7 @@ class DirectionDashboard extends Component
     public $averageRevenuePerRoom = 0;
 
     // Filtres
-    public $filterMode = 'month';
+    public $filterMode = 'day';
     public $selectedYear;
     public $selectedMonth;
     public $startDate;
@@ -68,27 +70,23 @@ class DirectionDashboard extends Component
     {
         $this->applyFilterDates();
 
-        $cacheKey = "direction_dashboard_{$this->startDate}_{$this->endDate}";
+        $this->calculateRevenue();
+        $this->calculatePayments();
+        $this->calculateOccupiedRooms();
+        $this->fetchTodayReservations();
+        $this->fetchTodaySales();
 
-        $data = Cache::remember($cacheKey, 30, function () {
-            $this->calculateRevenue();
-            $this->calculatePayments();
-            $this->calculateOccupiedRooms();
-            $this->fetchTodayReservations();
-            $this->fetchTodaySales();
-
-            return [
-                'hotel' => $this->totalRevenueHotel,
-                'restaurant' => $this->totalRevenueRestaurant,
-                'divers' => $this->totalRevenueDivers,
-                'global' => $this->totalRevenueGlobal,
-                'payments' => $this->totalPayments,
-                'due' => $this->totalDue,
-                'occupiedRooms' => $this->occupiedRooms,
-                'occupationRate' => $this->occupationRate,
-                'avgRoomRevenue' => $this->averageRevenuePerRoom,
-            ];
-        });
+        $data = [
+            'hotel' => $this->totalRevenueHotel,
+            'restaurant' => $this->totalRevenueRestaurant,
+            'divers' => $this->totalRevenueDivers,
+            'global' => $this->totalRevenueGlobal,
+            'payments' => $this->totalPayments,
+            'due' => $this->totalDue,
+            'occupiedRooms' => $this->occupiedRooms,
+            'occupationRate' => $this->occupationRate,
+            'avgRoomRevenue' => $this->averageRevenuePerRoom,
+        ];
 
         $this->totalRevenueHotel = $data['hotel'];
         $this->totalRevenueRestaurant = $data['restaurant'];
@@ -108,18 +106,29 @@ class DirectionDashboard extends Component
     // ============================================
     public function calculateRevenue()
     {
-        $invoices = Invoice::whereBetween('created_at', [$this->startDate, $this->endDate])
-            ->where('statut', 'Payée')
-            ->get();
+        $invoices = Invoice::whereBetween('created_at', [$this->startDate, $this->endDate])->get();
 
-        $this->totalRevenueHotel = $invoices->whereNotNull('reservation_id')->sum('montant_final');
-        $this->totalRevenueRestaurant = $invoices->whereNotNull('sale_id')->sum('montant_final');
-        $this->totalRevenueDivers = $invoices->whereNotNull('divers_service_vente_id')->sum('montant_final');
+        // Revenu basé sur ce qui est réellement payé
+        $this->totalRevenueHotel = $invoices
+            ->whereNotNull('reservation_id')
+            ->sum('montant_paye');
 
+        $this->totalRevenueRestaurant = $invoices
+            ->whereNotNull('sale_id')
+            ->sum('montant_paye');
+
+        $this->totalRevenueDivers = $invoices
+            ->whereNotNull('divers_service_vente_id')
+            ->sum('montant_paye');
+
+        // Revenu Global
         $this->totalRevenueGlobal =
             $this->totalRevenueHotel +
             $this->totalRevenueRestaurant +
             $this->totalRevenueDivers;
+
+        // Montant total facturé (nouveau KPI)
+        $this->totalInvoicedAmount = $invoices->sum('montant_final');
     }
 
     // ============================================
@@ -127,11 +136,17 @@ class DirectionDashboard extends Component
     // ============================================
     public function calculatePayments()
     {
+        // Paiements réellement effectués
         $this->totalPayments = (float) Payment::where('statut', 'Payé')
             ->whereBetween('created_at', [$this->startDate, $this->endDate])
             ->sum('montant');
 
-        $this->totalDue = $this->totalRevenueGlobal - $this->totalPayments;
+        // Montant dû = somme(montant_final - montant_paye)
+        $invoices = Invoice::whereBetween('created_at', [$this->startDate, $this->endDate])->get();
+
+        $this->totalDue = $invoices->sum(function ($inv) {
+            return $inv->montant_final - $inv->montant_paye;
+        });
     }
 
     // ============================================
@@ -207,6 +222,10 @@ class DirectionDashboard extends Component
     public function applyFilterDates()
     {
         $now = Carbon::now();
+        if ($this->filterMode === 'day') {
+            $this->startDate = Carbon::parse($this->day)->startOfDay();
+            $this->endDate = Carbon::parse($this->day)->endOfDay();
+        }
 
         if ($this->filterMode === 'week') {
             $this->startDate = $now->copy()->startOfWeek()->toDateString();

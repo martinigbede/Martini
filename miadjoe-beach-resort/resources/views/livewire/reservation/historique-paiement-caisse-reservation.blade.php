@@ -1,5 +1,4 @@
 <div class="p-4 md:p-6 bg-gray-50 min-h-screen">
-
     <!-- =======================
          HEADER & BOUTONS
     ======================== -->
@@ -12,12 +11,18 @@
         </div>
         
         <div class="flex flex-wrap gap-3">
-            <a href="{{ route('dashboard.gestion.decaissement') }}" 
+            <a href="{{ route('dashboard.gestion.decaissement') }}"
                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center gap-2">
                 <i class="fas fa-exchange-alt"></i>
                 Gestion Décaissements
             </a>
-            
+            <button wire:click="$dispatch('ouvrir-decaissement', { type: 'Hébergement' })" 
+                class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-md hover:shadow-lg" title="Décaisser" >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                </svg>
+                <span class="text-sm font-semibold">Décaisser</span>
+            </button>
             <button wire:click="exportPdf"
                     class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 flex items-center gap-2">
                 <i class="fas fa-file-pdf"></i>
@@ -142,7 +147,7 @@
         <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white hover-lift">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-orange-100 text-sm">Caisse Brute (Filtré)</p>
+                    <p class="text-orange-100 text-sm">Total des Paiements (Filtré)</p>
                     <h3 class="text-2xl font-bold mt-1">
                         {{ number_format($caisseBrute, 0, ',', ' ') }} FCFA
                     </h3>
@@ -160,23 +165,54 @@
         <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white hover-lift">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-green-100 text-sm">Espèces + Mobile Money</p>
+                    <p class="text-green-100 text-sm">Paiement Espèces + Mobile Money</p>
                     <h3 class="text-2xl font-bold mt-1">
                         {{ number_format($kpiEspMomo, 0, ',', ' ') }} FCFA
                     </h3>
                     @if($caisseHier)
-                        <p class="text-green-200 text-xs mt-2">
-                            Hier: {{ number_format($caisseHier['esp_momo'] ?? 0, 0, ',', ' ') }} FCFA
+                        <p class="text-green-200 text-base mt-2">
+                           Caisse d'Hier: {{ number_format($caisseHier['esp_momo'] ?? 0, 0, ',', ' ') }} FCFA
                         </p>
                     @endif
                 </div>
-                <div class="bg-green-400 p-3 rounded-full">
+                <div class="relative group bg-green-400 p-3 rounded-full cursor-pointer">
                     <i class="fas fa-money-bill-wave text-xl"></i>
+
+                    <!-- Menu flottant -->
+                    <div class="absolute right-0 mt-2 hidden group-hover:block bg-white text-gray-800 shadow-lg border rounded-lg w-56 p-4 z-50">
+                        <h4 class="font-semibold text-sm mb-2">Détails des comptes</h4>
+
+                        <div class="text-sm space-y-1">
+                            <p>Espèces : 
+                                <span class="font-bold">
+                                {{ number_format( \App\Models\CashAccount::where('nom_compte','Espèces')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Mobile Money : 
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Mobile Money')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Flooz : 
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Flooz')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+
+                            <p>Mix by Yas :
+                                <span class="font-bold">
+                                    {{ number_format( \App\Models\CashAccount::where('nom_compte','Mix by Yas')->where('type_caisse','Hébergement')->sum('solde'), 0, ',', ' ') }} FCFA
+                                </span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-green-400">
-                <p class="text-sm">
-                    Réel: {{ number_format($soldeEspMomo, 0, ',', ' ') }} FCFA
+                <p class="text-lg">
+                  Sold Réel en caisse: {{ number_format($soldeEspMomo, 0, ',', ' ') }} FCFA
                 </p>
             </div>
         </div>
@@ -185,13 +221,13 @@
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white hover-lift">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-blue-100 text-sm">Carte/TPE</p>
+                    <p class="text-blue-100 text-sm">Paiement Par Carte/TPE</p>
                     <h3 class="text-2xl font-bold mt-1">
                         {{ number_format($kpiTPE, 0, ',', ' ') }} FCFA
                     </h3>
                     @if($caisseHier)
-                        <p class="text-blue-200 text-xs mt-2">
-                            Hier: {{ number_format($caisseHier['tpe'] ?? 0, 0, ',', ' ') }} FCFA
+                        <p class="text-blue-200 text-base mt-2">
+                           Caisse d'Hier: {{ number_format($caisseHier['tpe'] ?? 0, 0, ',', ' ') }} FCFA
                         </p>
                     @endif
                 </div>
@@ -200,8 +236,8 @@
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-blue-400">
-                <p class="text-sm">
-                    Réel: {{ number_format($soldeTPE, 0, ',', ' ') }} FCFA
+                <p class="text-lg">
+                  Sold Réel: {{ number_format($soldeTPE, 0, ',', ' ') }} FCFA
                 </p>
             </div>
         </div>
@@ -210,13 +246,13 @@
         <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white hover-lift">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-purple-100 text-sm">Virement</p>
+                    <p class="text-purple-100 text-sm">Paiement Par Virement</p>
                     <h3 class="text-2xl font-bold mt-1">
                         {{ number_format($kpiVirement, 0, ',', ' ') }} FCFA
                     </h3>
                     @if($caisseHier)
-                        <p class="text-purple-200 text-xs mt-2">
-                            Hier: {{ number_format($caisseHier['virement'] ?? 0, 0, ',', ' ') }}  FCFA
+                        <p class="text-purple-200 text-base mt-2">
+                           Caisse d'Hier: {{ number_format($caisseHier['virement'] ?? 0, 0, ',', ' ') }}  FCFA
                         </p>
                     @endif
                 </div>
@@ -225,16 +261,59 @@
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-purple-400">
-                <p class="text-sm">
-                    Réel: {{ number_format($soldeVirement, 0, ',', ' ') }} FCFA
+                <p class="text-lg">
+                   Sold Réel: {{ number_format($soldeVirement, 0, ',', ' ') }} FCFA
                 </p>
             </div>
         </div>
     </div>
 
     <!-- =======================
+     TOTAL ENCAISSEMENTS
+    ======================= -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4 mb-6">
+        <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-5 text-white mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-indigo-100 text-sm">Total des Decaissements</p>
+                    <h3 class="text-2xl font-bold mt-1">
+                       - {{ number_format($kpiDecaissementsTotal, 0, ',', ' ') }} FCFA
+                    </h3>
+                    <p class="text-indigo-200 text-xs mt-2">
+                        {{ count($decaissements) }} decaissement(s)
+                    </p>
+                </div>
+                <div class="bg-indigo-400 p-3 rounded-full">
+                    <i class="fas fa-money-bill-trend-up text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================
+         TAB NAVIGATION
+    ======================== -->
+    <div class="mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button wire:click="$set('activeTab', 'paiements')"
+                        class="{{ $activeTab === 'paiements' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} py-2 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-receipt mr-2"></i>
+                    Paiements Vente ({{ $payments->count() }})
+                </button>
+                <button wire:click="$set('activeTab', 'decaissements')"
+                        class="{{ $activeTab === 'decaissements' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} py-2 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-download mr-2"></i>
+                    Décaissements ({{ count($decaissements) }})
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- =======================
          TABLEAU DES PAIEMENTS
     ======================== -->
+    @if(!isset($activeTab) || $activeTab === 'paiements')
     <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
             <h2 class="text-lg font-semibold text-gray-700 flex items-center gap-2">
@@ -254,6 +333,7 @@
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Réservation/Service</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remise</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
                     </tr>
@@ -302,6 +382,8 @@
                                 @php
                                     $modeColors = [
                                         'Espèces' => 'bg-green-100 text-green-800',
+                                        'Flooz' => 'bg-blue-100 text-blue-800',
+                                        'Mix by Yas' => 'bg-yellow-100 text-yellow-800',
                                         'Mobile Money' => 'bg-blue-100 text-blue-800',
                                         'Carte/TPE' => 'bg-purple-100 text-purple-800',
                                         'Virement' => 'bg-indigo-100 text-indigo-800',
@@ -321,6 +403,20 @@
                                 </div>
                             </td>
                             
+                            <!-- STATUT -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                @php
+                                    $modeColors = [
+                                        'Payé' => 'bg-green-100 text-green-800',
+                                        'En attente' => 'bg-blue-100 text-blue-800',    
+                                    ];
+                                    $color = $modeColors[$payment->statut] ?? 'bg-gray-100 text-gray-800';
+                                @endphp
+                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $color }}">
+                                    {{ $payment->statut }}
+                                </span>
+                            </td>
+
                             <!-- REMISE -->
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-red-500">
                                 {{ number_format($payment->remise_amount, 0, ',', ' ') }} FCFA
@@ -362,7 +458,120 @@
             </div>
         @endif
     </div>
-    
+    @endif
+
+    <!-- =======================
+         TAB CONTENT - ENCAISSEMENTS
+    ======================== -->
+    @if(isset($activeTab) && $activeTab === 'decaissements')
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-hand-holding-usd"></i>
+                Historique des Décaissements
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">{{ count($decaissements) }} décaissement(s)</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Décaisseur</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Encaisseur</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
+                    </tr>
+                </thead>
+
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($decaissements as $d)
+                    <tr class="hover:bg-gray-50 transition duration-150">
+                        <td class="px-4 py-3 font-mono text-sm text-gray-600">
+                            #{{ $d['id'] }}
+                        </td>
+
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            @if($d['date'])
+                                <div class="text-sm text-gray-900">
+                                    {{ \Carbon\Carbon::parse($d['date'])->format('d/m/Y') }}
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    {{ \Carbon\Carbon::parse($d['date'])->format('H:i') }}
+                                </div>
+                            @else
+                                <div class="text-sm text-gray-400">--</div>
+                            @endif
+                        </td>
+
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-bold text-green-600">
+                                {{ number_format($d['montant'], 0, ',', ' ') }} FCFA
+                            </div>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-gray-900">
+                                {{ $d['reference'] ?? '--' }}
+                            </div>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-gray-900">
+                                {{ $d['decaisseur'] ?? '--' }}
+                            </div>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-gray-900">
+                                {{ $d['encaisseur'] ?? '--' }}
+                            </div>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-gray-900">
+                                {{ $d['mode'] ?? '--' }}
+                            </div>
+                        </td>
+
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="px-4 py-12 text-center">
+                            <div class="text-gray-400">
+                                <i class="fas fa-cash-register fa-3x mb-4"></i>
+                                <p class="text-lg font-medium text-gray-500">Aucun décaissement trouvé</p>
+                                <p class="text-sm mt-2">Ajustez vos filtres pour voir plus de résultats</p>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if(count($decaissements) > 0)
+        <div class="px-5 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <p class="text-sm text-gray-600">
+                    Total Décaissements:
+                    <span class="font-bold">
+                        {{ number_format(collect($decaissements)->sum('montant'), 0, ',', ' ') }} FCFA
+                    </span>
+                </p>
+                <p class="text-sm text-gray-600">
+                    {{ count($decaissements) }} transaction(s)
+                </p>
+            </div>
+        </div>
+        @endif
+
+    </div>
+    @endif
+
     <!-- INDICATEUR DE CHARGEMENT -->
     <div wire:loading class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl shadow-xl">
@@ -372,7 +581,7 @@
             </div>
         </div>
     </div>
-    
+    <livewire:caisse.decaissement-modal />
     <style>
         .hover-lift:hover {
             transform: translateY(-2px);

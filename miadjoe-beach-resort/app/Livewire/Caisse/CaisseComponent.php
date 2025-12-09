@@ -19,7 +19,7 @@ class CaisseComponent extends Component
     public $selectedVenteId;
     public $selectedVenteType;
     public $paymentAmount = 0;
-    public $paymentMode = '💵 Espèces';
+    public $paymentMode = 'Espèces';
 
     // 🔹 Recherche en temps réel
     public $searchService = '';

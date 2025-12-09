@@ -1,6 +1,6 @@
 {{-- resources/views/livewire/reservation/reservation-management-pro.blade.php --}}
 
-<div>
+<div wire:poll.5s>
     @if (session()->has('message'))
         <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-4">
             {{ session('message') }}

@@ -51,6 +51,21 @@
                     </div>
                 </div>
 
+                <!-- Sejour -->
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-green-600">Séjour</p>
+                            <p class="text-2xl font-bold text-green-900 mt-1">
+                                {{ \App\Models\Reservation::where('statut', 'En séjour')->count() }}
+                            </p>
+                        </div>
+                        <div class="p-2 bg-green-100 rounded-lg">
+                            <!-- Icon -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- En Attente -->
                 <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
                     <div class="flex items-center justify-between">
@@ -66,7 +81,7 @@
                     </div>
                 </div>
 
-                <!-- Chiffre d'Affaires -->
+                <!-- Chiffre d'Affaires 
                 <div class="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-200">
                     <div class="flex items-center justify-between">
                         <div>
@@ -76,10 +91,10 @@
                             </p>
                         </div>
                         <div class="p-2 bg-purple-100 rounded-lg">
-                            <!-- Icon -->
+                            
                         </div>
                     </div>
-                </div>
+                </div> -->
             </div>
 
             <!-- Main Content -->

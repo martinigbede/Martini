@@ -104,6 +104,8 @@
                                     <select wire:model="paymentMode" 
                                             class="w-full border border-brown-200 rounded-lg focus:border-brown-500 focus:ring-1 focus:ring-brown-500 py-2 px-3 text-sm bg-white">
                                         <option>Espèces</option>
+                                        <option>Flooz</option>
+                                        <option>Mix by Yas</option>
                                         <option>Carte/TPE</option>
                                         <option>Mobile Money</option>
                                         <option>Offert</option>

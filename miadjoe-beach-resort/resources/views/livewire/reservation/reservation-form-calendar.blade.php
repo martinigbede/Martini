@@ -167,6 +167,13 @@
                                                     <div class="w-8 h-4 bg-brown-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brown-600"></div>
                                                 </label>
                                                 <span class="text-xs text-brown-600">Lit app.</span>
+                                                @if ($item['lit_dappoint'])
+                                                    <div class="flex items-center gap-2">
+                                                        <button wire:click="decrementLitDappoint({{ $item['room_id'] }})">-</button>
+                                                        <span>{{ $item['nb_lits_dappoint'] }}</span>
+                                                        <button wire:click="incrementLitDappoint({{ $item['room_id'] }})">+</button>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>

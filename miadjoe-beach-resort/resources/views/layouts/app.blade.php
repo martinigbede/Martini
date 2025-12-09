@@ -6,80 +6,82 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Laravel') }}</title>
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 
-    <!-- CSS compilé -->
     <link rel="stylesheet" href="{{ asset('build/assets/app-BgMLuSsD.css') }}">
 
-    <!-- Vite CSS/JS -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-
-    <!-- Livewire Styles -->
     @livewireStyles
 
     <style>
-        .main-content {
-            transition: margin-left 0.3s ease-in-out;
-            min-height: 100vh;
+        /* Largeurs desktop */
+        body.sidebar-collapsed .sidebar-wrapper {
+            width: 80px;
         }
-        .sidebar-collapsed .main-content {
-            margin-left: 80px;
+        body.sidebar-expanded .sidebar-wrapper {
+            width: 280px;
         }
-        .sidebar-expanded .main-content {
-            margin-left: 280px;
-        }
-        @media (max-width: 768px) {
-            .main-content {
-                margin-left: 0 !important;
+
+        /* Mobile : sidebar en overlay */
+        @media(max-width: 768px) {
+            .sidebar-wrapper {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                z-index: 50;
+                transform: translateX(-100%);
+                transition: transform .3s ease;
+            }
+            body.sidebar-expanded .sidebar-wrapper {
+                transform: translateX(0);
+            }
+            body.sidebar-expanded .content-wrapper {
+                filter: blur(1px);
             }
         }
     </style>
 </head>
-<body class="font-sans antialiased">
+
+<body class="font-sans antialiased sidebar-expanded">
+
     <x-banner />
 
-    <!-- Sidebar Livewire Component -->
-    <livewire:sidebar-navigation />
+    <!-- CONTENEUR PRINCIPAL FLEXBOX -->
+    <div class="flex min-h-screen">
 
-    <div class="min-h-screen bg-gray-100 main-content" id="mainContent">
-        @if (isset($header))
-            <header class="bg-white shadow">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                    {{ $header }}
-                </div>
-            </header>
-        @endif
+        <!-- Sidebar -->
+        <div class="sidebar-wrapper transition-all duration-300 bg-white shadow-lg">
+            <livewire:sidebar-navigation />
+        </div>
 
-        <main>
-            {{ $slot }}
-        </main>
+        <!-- Contenu -->
+        <div class="content-wrapper flex-1 bg-gray-100">
+            @if (isset($header))
+                <header class="bg-white shadow">
+                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                        {{ $header }}
+                    </div>
+                </header>
+            @endif
+
+            <main>
+                {{ $slot }}
+            </main>
+        </div>
+
     </div>
 
     @stack('modals')
-
-    <!-- Livewire Scripts -->
     @livewireScripts
-
-    <!-- JS compilé -->
     <script src="{{ asset('build/assets/app-Bj43h_rG.js') }}" defer></script>
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Script sidebar -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            if (typeof Livewire === 'undefined') {
-                console.error('Livewire non chargé !');
-                return;
-            }
-
-            const mainContent = document.getElementById('mainContent');
 
             Livewire.on('sidebar-toggled', (data) => {
                 if (data.collapsed) {
@@ -97,15 +99,8 @@
             } else {
                 document.body.classList.add('sidebar-expanded');
             }
-
-            // Désactiver la navigation si wire:navigate est utilisé
-            document.addEventListener('click', function(e) {
-                const link = e.target.closest('a');
-                if (link && link.hasAttribute('wire:navigate')) {
-                    e.preventDefault();
-                }
-            });
         });
     </script>
+
 </body>
 </html>

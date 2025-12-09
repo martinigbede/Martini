@@ -15,6 +15,10 @@
 
     {{-- BOUTONS À DROITE --}}
     <div class="flex gap-2">
+        <button wire:click="$set('filterMode', 'day'); refreshData()" 
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
+            Quotidien
+        </button>
 
         <button wire:click="$set('filterMode', 'week'); refreshData()" 
                 class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
@@ -60,31 +64,31 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {{-- Revenu Hôtel --}}
         <div class="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 shadow-lg border border-blue-100 hover:-translate-y-1 hover:shadow-xl transition-all">
-            <p class="text-sm font-semibold text-blue-600 mb-2">Revenu Hôtel (Mois)</p>
+            <p class="text-sm font-semibold text-blue-600 mb-2">Revenu Hôtel (Jour)</p>
             <p class="text-2xl font-bold text-blue-900">{{ number_format($totalRevenueHotel, 0, ',', ' ') }} FCFA</p>
         </div>
 
         {{-- Revenu Restaurant --}}
         <div class="bg-gradient-to-br from-white to-green-50 rounded-2xl p-6 shadow-lg border border-green-100 hover:-translate-y-1 hover:shadow-xl transition-all">
-            <p class="text-sm font-semibold text-green-600 mb-2">Revenu Restaurant (Mois)</p>
+            <p class="text-sm font-semibold text-green-600 mb-2">Revenu Restaurant (Jour)</p>
             <p class="text-2xl font-bold text-green-900">{{ number_format($totalRevenueRestaurant, 0, ',', ' ') }} FCFA</p>
         </div>
 
         {{-- Revenu Divers Services --}}
         <div class="bg-gradient-to-br from-white to-amber-50 rounded-2xl p-6 shadow-lg border border-amber-100 hover:-translate-y-1 hover:shadow-xl transition-all">
-            <p class="text-sm font-semibold text-amber-600 mb-2">Revenu Services Divers</p>
+            <p class="text-sm font-semibold text-amber-600 mb-2">Revenu Services Divers (Jour)</p>
             <p class="text-2xl font-bold text-amber-900">{{ number_format($totalRevenueDivers, 0, ',', ' ') }} FCFA</p>
         </div>
 
         {{-- Total Global --}}
         <div class="bg-gradient-to-br from-white to-purple-50 rounded-2xl p-6 shadow-lg border border-purple-100 hover:-translate-y-1 hover:shadow-xl transition-all">
-            <p class="text-sm font-semibold text-purple-600 mb-2">Revenu Global (Mois)</p>
+            <p class="text-sm font-semibold text-purple-600 mb-2">Revenu Global (Jour)</p>
             <p class="text-2xl font-bold text-purple-900">{{ number_format($totalRevenueGlobal, 0, ',', ' ') }} FCFA</p>
         </div>
     </div>
 
     {{-- AUTRES INDICATEURS --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {{-- Paiements totaux --}}
         <div class="bg-white rounded-2xl p-6 shadow-lg border border-amber-100">
             <p class="text-sm font-semibold text-amber-600 mb-1">Paiements reçus</p>
@@ -95,6 +99,12 @@
         <div class="bg-white rounded-2xl p-6 shadow-lg border border-red-100">
             <p class="text-sm font-semibold text-red-600 mb-1">Montant dû (non payé)</p>
             <p class="text-xl font-bold text-red-900">{{ number_format($totalDue, 0, ',', ' ') }} FCFA</p>
+        </div>
+
+        {{-- Montant dû --}}
+        <div class="bg-white rounded-2xl p-6 shadow-lg border border-red-100">
+            <p class="text-sm font-semibold text-red-600 mb-1">Total Facturé</p>
+            <p class="text-xl font-bold text-red-900">{{ number_format($totalInvoicedAmount, 0, ',', ' ') }} FCFA</p>
         </div>
 
         {{-- Taux d’occupation --}}
@@ -202,7 +212,15 @@
             </div>
         </div>
     </div>
-
+    <!-- INDICATEUR DE CHARGEMENT -->
+    <div wire:loading class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-xl">
+            <div class="flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span class="text-lg font-medium text-gray-700">Chargement des données...</span>
+            </div>
+        </div>
+    </div>
     {{-- INDICATEUR DE MISE À JOUR --}}
     <div class="mt-8 text-center">
         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-brown-100 text-brown-700">

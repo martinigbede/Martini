@@ -17,6 +17,7 @@ class ReservationItem extends Model
         'quantite',
         'nb_personnes',
         'lit_dappoint',
+        'nb_lits_dappoint',
         'prix_unitaire',
         'total',
     ];
@@ -60,6 +61,12 @@ class ReservationItem extends Model
         if (!$this->room || !$this->room->roomType) {
             return;
         }
+
+        // Capacité maximale de la chambre
+        $capMax = $this->room->roomType->capacite ?? 0;
+
+        // Active lit d’appoint seulement si dépassement
+        $this->lit_dappoint = $this->nb_personnes > $capMax;
 
         $this->prix_unitaire = \App\Services\ReservationCalculator::calculateTotal(
             $this->room->roomType->id,

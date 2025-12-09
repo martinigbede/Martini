@@ -28,6 +28,10 @@ class CashAccount extends Model
             'user_id' => $userId,
         ]);
 
+        //if (!$force && request()->input('statut') === 'en attente') {
+        //    return;
+        //}
+
         // Mise à jour du solde
         if ($type === 'entree') {
             $this->increment('solde', $amount);

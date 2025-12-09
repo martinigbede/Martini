@@ -36,6 +36,7 @@ class ReservationFormPro extends Component
     public $check_out;
     public $nb_personnes = 1;
     public $lit_dappoint = false;
+    public $nb_lits_dappoint = 0;
     public $statut = 'En attente';
     public $mode_reservation = 'Interne';
 
@@ -68,9 +69,22 @@ class ReservationFormPro extends Component
     }
 
     // === OUTILS ===
-    private function calculateItemTotal($roomTypeId, $nb_personnes, $lit_dappoint, $days)
+    public function calculateItemTotal($roomTypeId, $nb_personnes, $nb_lits_dappoint, $nb_jours)
     {
-        return ReservationCalculator::calculateTotal($roomTypeId, $lit_dappoint, $nb_personnes, $days);
+        $roomType = RoomType::find($roomTypeId);
+
+        if (!$roomType) {
+            return 0;
+        }
+
+        $prix_base = $roomType->prix_nuit * $nb_jours;
+
+        // prix par lit d’appoint
+        $prix_lit_dappoint = $roomType->prix_lit_dappoint ?? 0;
+
+        $total_lits = $nb_lits_dappoint * $prix_lit_dappoint * $nb_jours;
+
+        return $prix_base + $total_lits;
     }
 
     // === GESTION CLIENT ===
@@ -116,6 +130,7 @@ class ReservationFormPro extends Component
         $this->check_out = $res->check_out;
         $this->nb_personnes = max(1, $res->nb_personnes);
         $this->lit_dappoint = $res->lit_dappoint;
+        $this->nb_lits_dappoint = $res->nb_lits_dappoint;
         $this->room_ids = $res->rooms->pluck('id')->toArray();
         $this->statut = $res->statut;
         $this->mode_reservation = $res->mode_reservation;
@@ -127,6 +142,7 @@ class ReservationFormPro extends Component
                 'room_id' => $item->room_id,
                 'nb_personnes' => max(1, $item->nb_personnes),
                 'lit_dappoint' => $item->lit_dappoint,
+                'nb_lits_dappoint' => $item->nb_lits_dappoint,
                 'prix_unitaire' => $item->prix_unitaire,
                 'total' => $item->total,
                 'quantite' => $item->quantite,
@@ -153,7 +169,8 @@ class ReservationFormPro extends Component
             $this->reservationItems[] = [
                 'room_id' => $room->id,
                 'nb_personnes' => $this->nb_personnes,
-                'lit_dappoint' => $this->lit_dappoint,
+                'lit_dappoint' => false,
+                'nb_lits_dappoint' => 0,
                 'quantite' => 1,
                 'prix_unitaire' => $prix,
                 'total' => $prix,
@@ -191,18 +208,27 @@ class ReservationFormPro extends Component
             foreach ($this->rooms->whereIn('id', $this->room_ids) as $room) {
                 $item = collect($this->reservationItems)->firstWhere('room_id', $room->id);
 
+                // Nombre de personnes et lit d’appoint
                 $nb = max(1, $item['nb_personnes'] ?? $this->nb_personnes);
-                $lit = $item['lit_dappoint'] ?? $this->lit_dappoint;
+                $lit = $item['lit_dappoint'] ?? false;
+                $nb_lits_dappoint = $lit ? ($item['nb_lits_dappoint'] ?? 0) : 0;
 
-                $prix = $this->calculateItemTotal($room->roomType->id, $nb, $lit, $this->days);
+                // Calcul du prix : lit d’appoint seulement si activé
+                $prix = $this->calculateItemTotal(
+                    $room->roomType->id,
+                    $nb,
+                    $nb_lits_dappoint,
+                    $this->days
+                );
 
                 $items[] = [
-                    'room_id' => $room->id,
-                    'quantite' => 1,
-                    'nb_personnes' => $nb,
-                    'lit_dappoint' => $lit,
-                    'prix_unitaire' => $prix,
-                    'total' => $prix,
+                    'room_id'          => $room->id,
+                    'quantite'         => 1,
+                    'nb_personnes'     => $nb,
+                    'lit_dappoint'     => $lit,
+                    'nb_lits_dappoint' => $nb_lits_dappoint,
+                    'prix_unitaire'    => $prix,
+                    'total'            => $prix,
                 ];
 
                 $total += $prix;
@@ -211,11 +237,12 @@ class ReservationFormPro extends Component
             $this->reservationItems = $items;
             $this->total = $total;
 
-            // montant dû
+            // Calcul du montant dû
             if (!$this->isNewClient && $this->selectedClientId) {
                 $paid = Client::find($this->selectedClientId)
                     ?->reservations()->with('payments')->get()
                     ->sum(fn($r) => $r->payments->sum('montant')) ?? 0;
+
                 $this->amount_due = max(0, $this->total - $paid);
             } else {
                 $this->amount_due = $this->total;
@@ -225,6 +252,38 @@ class ReservationFormPro extends Component
             Log::error('Erreur calcul total : ' . $e->getMessage());
             $this->total = $this->amount_due = $this->days = 0;
             $this->reservationItems = [];
+        }
+        
+    }
+
+    public function recalculateTotals()
+    {
+        $this->total = 0;
+        $this->amount_due = 0;
+
+        foreach ($this->reservationItems as $index => $item) {
+
+            $room = Room::find($item['room_id']);
+
+            if (!$room || !$room->roomType) {
+                continue;
+            }
+
+            $days = ReservationCalculator::getDaysBetween($this->check_in, $this->check_out);
+
+            $prix = ReservationCalculator::calculateTotal(
+                $room->roomType->id,
+                $item['lit_dappoint'] ?? false,
+                $item['nb_personnes'] ?? 1,
+                $days,
+                $item['nb_lits_dappoint'] ?? 0
+            );
+
+            // Mise à jour en temps réel
+            $this->reservationItems[$index]['prix_unitaire'] = $prix;
+
+            $this->total += $prix;
+            $this->amount_due = $this->total; // si pas d'acompte
         }
     }
 
@@ -254,6 +313,7 @@ class ReservationFormPro extends Component
             'check_out' => $this->check_out,
             'nb_personnes' => $this->nb_personnes,
             'lit_dappoint' => $this->lit_dappoint,
+            'nb_lits_dappoint' => $this->nb_lits_dappoint,
             'statut' => $this->statut,
             'mode_reservation' => $this->mode_reservation,
         ];
@@ -296,7 +356,8 @@ class ReservationFormPro extends Component
         foreach ($this->reservationItems as &$item) {
             if (!$roomId || $item['room_id'] == $roomId) $item['nb_personnes']++;
         }
-        $this->calculateTotal();
+        //$this->calculateTotal();
+        $this->recalculateTotals();
     }
 
     public function decrementPersons($roomId = null)
@@ -304,7 +365,8 @@ class ReservationFormPro extends Component
         foreach ($this->reservationItems as &$item) {
             if ((!$roomId || $item['room_id'] == $roomId) && $item['nb_personnes'] > 1) $item['nb_personnes']--;
         }
-        $this->calculateTotal();
+        //$this->calculateTotal();
+        $this->recalculateTotals();
     }
 
     public function toggleLitDappoint($roomId)
@@ -312,7 +374,30 @@ class ReservationFormPro extends Component
         foreach ($this->reservationItems as &$item) {
             if ($item['room_id'] == $roomId) $item['lit_dappoint'] = !$item['lit_dappoint'];
         }
-        $this->calculateTotal();
+        //$this->calculateTotal();
+        $this->recalculateTotals();
+    }
+
+    public function incrementLitDappoint($roomId)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if ($item['room_id'] == $roomId && $item['lit_dappoint']) {
+                $item['nb_lits_dappoint']++;
+            }
+        }
+        //$this->calculateTotal();
+        $this->recalculateTotals();
+    }
+
+    public function decrementLitDappoint($roomId)
+    {
+        foreach ($this->reservationItems as &$item) {
+            if ($item['room_id'] == $roomId && $item['lit_dappoint']) {
+                $item['nb_lits_dappoint'] = max(0, $item['nb_lits_dappoint'] - 1);
+            }
+        }
+        //$this->calculateTotal();
+        $this->recalculateTotals();
     }
 
     // === LIVEWIRE ===
@@ -324,13 +409,15 @@ class ReservationFormPro extends Component
         }
 
         if (str_starts_with($property, 'reservationItems.') ||
-            in_array($property, ['check_in', 'check_out', 'room_ids', 'nb_personnes', 'lit_dappoint'])) {
-            $this->calculateTotal();
+            in_array($property, ['check_in', 'check_out'])) {
+            $this->recalculateTotals();
         }
 
         if ($property === 'selectedClientId') {
             $this->onClientChange();
         }
+        
+        $this->recalculateTotals();
     }
 
     public function closeModal()

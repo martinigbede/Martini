@@ -62,6 +62,7 @@ class EncaissementModal extends Component
         $this->decaissementsNonEncaisse = Disbursement::where('est_encaisse', false)->get();
         // Notifier le parent
         $this->dispatch('refresh-data');
+        $this->dispatch('encaissementEffectue');
     }
 
     public function encaisserTout()
@@ -72,7 +73,12 @@ class EncaissementModal extends Component
 
         foreach ($this->decaissementsNonEncaisse as $dec) {
             // Créditer la caisse
-            $caisse->increment('solde', $dec->montant);
+            $caisse->addTransaction(
+                amount: $dec->montant,
+                type: 'entree',
+                description: "Encaissement décaissement #{$dec->id} : {$dec->motif}",
+                userId: Auth::id()
+            );
 
             // Marquer le décaissement comme encaissé
             $dec->update([
@@ -88,6 +94,8 @@ class EncaissementModal extends Component
 
         // Notifier le parent
         $this->dispatch('refresh-data');
+        $this->dispatch('encaissementEffectue');
+        $this->dispatch('flashMessage', ['message' => 'Décaissement encaissé avec succès !', 'type' => 'success']); 
     }
 
     public function render()

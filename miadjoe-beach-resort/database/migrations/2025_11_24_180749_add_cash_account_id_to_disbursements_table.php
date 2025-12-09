@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::table('disbursements', function (Blueprint $table) {
             $table->unsignedBigInteger('cash_account_id')->nullable()->after('user_id');
+            $table->unsignedBigInteger('caisse_source_id')->nullable();
         });
     }
 

@@ -20,7 +20,7 @@
     </div>
 
     {{-- KPI Cards modernisées --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
         <div class="bg-gradient-to-br from-white to-brown-50 rounded-2xl p-6 shadow-lg border border-brown-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <div class="flex items-center justify-between">
                 <div>
@@ -68,6 +68,20 @@
                 <div>
                     <p class="text-brown-600 text-sm font-semibold mb-2">Confirmées</p>
                     <p class="text-3xl font-bold text-brown-900">{{ $confirmedCount }}</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-white to-brown-50 rounded-2xl p-6 shadow-lg border border-brown-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-brown-600 text-sm font-semibold mb-2">En Séjour</p>
+                    <p class="text-3xl font-bold text-brown-900">{{ \App\Models\Reservation::where('statut', 'En séjour')->count() }}</p>
                 </div>
                 <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
                     <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

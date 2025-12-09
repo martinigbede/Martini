@@ -27,6 +27,8 @@
                 <label for="paymentMode" class="block font-medium">Mode de paiement</label>
                 <select id="paymentMode" wire:model.defer="paymentMode" class="border rounded w-full p-2">
                     <option>Espèces</option>
+                    <option>Flooz</option>
+                    <option>Mix by Yas</option>
                     <option>Mobile Money</option>
                     <option>Carte/TPE</option>
                     <option>virement</option>

@@ -1,7 +1,9 @@
 {{-- resources/views/livewire/reservation/reservation-form-pro.blade.php --}}
 <div class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" wire:ignore.self>
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 border border-brown-100 overflow-hidden flex flex-col max-h-[85vh]" wire:key="reservation-form-pro">
-
+    {{-- Modal avec hauteur fixe de 20cm --}}
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 border border-brown-100 overflow-hidden flex flex-col" 
+         style="height: 20cm; max-height: 20cm;">
+        
         {{-- En-tête compact --}}
         <div class="bg-brown-700 px-6 py-4 relative shrink-0">
             <div class="relative flex justify-between items-center">
@@ -35,9 +37,9 @@
             </div>
         @endif
 
-        {{-- Contenu défilant --}}
-        <div class="flex-1 overflow-y-auto">
-            <div class="p-6 space-y-4">
+        {{-- Contenu avec scroll interne --}}
+        <div class="flex-1 overflow-y-auto p-6">
+            <div class="space-y-4">
 
                 {{-- Client en une ligne --}}
                 <div class="grid grid-cols-1 gap-3">
@@ -117,58 +119,68 @@
                             </span>
                         </div>
 
-                        @foreach($reservationItems as $index => $item)
-                            @php
-                                $room = $rooms->firstWhere('id', $item['room_id']);
-                            @endphp
-                            <div class="border border-brown-200 p-4 rounded-lg relative bg-white">
-                                <button type="button" 
-                                        wire:click="removeRoom({{ $item['room_id'] }})" 
-                                        class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors">
-                                    ✕
-                                </button>
+                        {{-- Conteneur scrollable pour les chambres --}}
+                        <div class="space-y-3 max-h-48 overflow-y-auto pr-1">
+                            @foreach($reservationItems as $index => $item)
+                                @php
+                                    $room = $rooms->firstWhere('id', $item['room_id']);
+                                @endphp
+                                <div class="border border-brown-200 p-4 rounded-lg relative bg-white">
+                                    <button type="button" 
+                                            wire:click="removeRoom({{ $item['room_id'] }})" 
+                                            class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors">
+                                        ✕
+                                    </button>
 
-                                {{-- Tout sur une ligne --}}
-                                <div class="flex items-center justify-between gap-4">
-                                    {{-- Info chambre --}}
-                                    <div class="flex-1">
-                                        <h4 class="font-medium text-brown-800 text-sm">Chambre {{ $room->numero ?? '??' }}</h4>
-                                        <p class="text-brown-600 text-xs">{{ $room->roomType->nom ?? 'Type inconnu' }}</p>
-                                    </div>
+                                    {{-- Tout sur une ligne --}}
+                                    <div class="flex items-center justify-between gap-4">
+                                        {{-- Info chambre --}}
+                                        <div class="flex-1">
+                                            <h4 class="font-medium text-brown-800 text-sm">Chambre {{ $room->numero ?? '??' }}</h4>
+                                            <p class="text-brown-600 text-xs">{{ $room->roomType->nom ?? 'Type inconnu' }}</p>
+                                        </div>
 
-                                    {{-- Nombre de personnes compact --}}
-                                    <div class="w-24">
-                                        <label class="block text-xs text-brown-600 mb-1">Personnes</label>
+                                        {{-- Nombre de personnes compact --}}
+                                        <div class="w-24">
+                                            <label class="block text-xs text-brown-600 mb-1">Personnes</label>
+                                            <div class="flex items-center space-x-2">
+                                                <button type="button" 
+                                                        wire:click="decrementPersons({{ $item['room_id'] }})"
+                                                        class="w-6 h-6 bg-brown-100 text-brown-700 rounded hover:bg-brown-200 transition-colors flex items-center justify-center text-xs">
+                                                    -
+                                                </button>
+                                                <input type="number" min="1"
+                                                       wire:model.live="reservationItems.{{ $index }}.nb_personnes"
+                                                       class="flex-1 border border-brown-200 rounded text-center py-1 px-2 text-sm w-12">
+                                                <button type="button" 
+                                                        wire:click="incrementPersons({{ $item['room_id'] }})"
+                                                        class="w-6 h-6 bg-brown-100 text-brown-700 rounded hover:bg-brown-200 transition-colors flex items-center justify-center text-xs">
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {{-- Lit d'appoint compact --}}
                                         <div class="flex items-center space-x-2">
-                                            <button type="button" 
-                                                    wire:click="decrementPersons({{ $item['room_id'] }})"
-                                                    class="w-6 h-6 bg-brown-100 text-brown-700 rounded hover:bg-brown-200 transition-colors flex items-center justify-center text-xs">
-                                                -
-                                            </button>
-                                            <input type="number" min="1"
-                                                   wire:model.live="reservationItems.{{ $index }}.nb_personnes"
-                                                   class="flex-1 border border-brown-200 rounded text-center py-1 px-2 text-sm w-12">
-                                            <button type="button" 
-                                                    wire:click="incrementPersons({{ $item['room_id'] }})"
-                                                    class="w-6 h-6 bg-brown-100 text-brown-700 rounded hover:bg-brown-200 transition-colors flex items-center justify-center text-xs">
-                                                +
-                                            </button>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" 
+                                                       wire:model.live="reservationItems.{{ $index }}.lit_dappoint" 
+                                                       class="sr-only peer">
+                                                <div class="w-8 h-4 bg-brown-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brown-600"></div>
+                                            </label>
+                                            <span class="text-xs text-brown-600">Lit app.</span>
+                                            @if ($item['lit_dappoint'])
+                                                <div class="flex items-center gap-2">
+                                                    <button wire:click="decrementLitDappoint({{ $item['room_id'] }})">-</button>
+                                                    <span>{{ $item['nb_lits_dappoint'] }}</span>
+                                                    <button wire:click="incrementLitDappoint({{ $item['room_id'] }})">+</button>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
-
-                                    {{-- Lit d'appoint compact --}}
-                                    <div class="flex items-center space-x-2">
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" 
-                                                   wire:model.live="reservationItems.{{ $index }}.lit_dappoint" 
-                                                   class="sr-only peer">
-                                            <div class="w-8 h-4 bg-brown-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brown-600"></div>
-                                        </label>
-                                        <span class="text-xs text-brown-600">Lit app.</span>
-                                    </div>
                                 </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
                 @endif
 

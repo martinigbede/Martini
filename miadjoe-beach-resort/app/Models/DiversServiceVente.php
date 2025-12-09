@@ -10,7 +10,7 @@ class DiversServiceVente extends Model
     use HasFactory;
 
     protected $fillable = [
-        'client_nom', 'type_client', 'user_id', 'total', 'remarque'
+        'client_nom', 'type_client', 'user_id', 'total', 'remarque', 'statut'
     ];
 
     public function items()

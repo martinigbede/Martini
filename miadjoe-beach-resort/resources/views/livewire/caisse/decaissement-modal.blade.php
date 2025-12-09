@@ -34,6 +34,8 @@
                     <select wire:model="mode" class="w-full border rounded p-2">
                         <option value="Espèces">Espèces</option>
                         <option value="Mobile Money">Mobile Money</option>
+                        <option value="Flooz">Flooz</option>
+                        <option value="Mix by Yas">Mix by Yas</option>
                     </select>
                 </div>
             </div>

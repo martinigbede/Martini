@@ -10,20 +10,14 @@ use Illuminate\Support\Facades\Log;
 
 class CashAccountService
 {
-    /**
-     * Crédit la caisse Mobile Money (Hébergement)
-     * avec protection anti-doublon.
-     */
     public function creditSemoaPayment(Payment $payment): void
     {
         if ($payment->statut !== 'Payé') {
             return;
         }
 
-        // Clé de verrouillage anti-doublon
         $lockKey = 'cash_credit_payment_' . $payment->id;
 
-        // Si un crédit a déjà été appliqué récemment, on stoppe
         if (Cache::has($lockKey)) {
             Log::warning("SEMOA : Crédit déjà appliqué, tentative ignorée", [
                 'payment_id' => $payment->id,
@@ -32,14 +26,12 @@ class CashAccountService
             return;
         }
 
-        // Verrou de 10 minutes
         Cache::put($lockKey, true, now()->addMinutes(10));
 
-        // On force la caisse Hébergement / Mobile Money
         $cashAccount = CashAccount::firstOrCreate(
             [
                 'type_caisse' => 'Hébergement',
-                'nom_compte' => 'Mobile Money',
+                'nom_compte'  => 'Mobile Money',
             ],
             [
                 'solde' => 0,
@@ -47,11 +39,16 @@ class CashAccountService
         );
 
         DB::transaction(function () use ($cashAccount, $payment) {
-            $cashAccount->update([
-                'solde' => DB::raw("solde + {$payment->montant}")
-            ]);
 
-            Log::info("SEMOA : Caisse créditée (anti-doublon actif)", [
+            // Enregistrement du mouvement de caisse (transaction)
+            $cashAccount->addTransaction(
+                amount: $payment->montant,
+                type: 'entree',
+                description: "Crédit SEMOA - Réservation #{$payment->reservation_id}",
+                userId: $payment->user_id
+            );
+
+            Log::info("SEMOA : Caisse créditée + mouvement créé", [
                 'payment_id' => $payment->id,
                 'montant' => $payment->montant,
             ]);

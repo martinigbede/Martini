@@ -77,8 +77,6 @@
                             class="w-full border border-brown-300 rounded-lg shadow-sm px-4 py-3 focus:ring-brown-400 focus:border-brown-400 transition-colors duration-200">
                         <option value="Espèces">Espèces</option>
                         <option value="Mobile Money">Mobile Money</option>
-                        <option value="Carte/TPE">Carte/TPE</option>
-                        <option value="Autre">Autre</option>
                     </select>
                 </div>
 
@@ -86,8 +84,10 @@
                     <label class="block text-sm font-medium text-brown-700 mb-2">Statut</label>
                     <select wire:model="statut"
                             class="w-full border border-brown-300 rounded-lg shadow-sm px-4 py-3 focus:ring-brown-400 focus:border-brown-400 transition-colors duration-200">
-                        <option value="validée">Validée</option>
                         <option value="en attente">En attente</option>
+                        @if(Auth::user()->hasRole('Comptable'))
+                            <option value="validée">Validée</option>
+                        @endif
                     </select>
                 </div>
             </div>

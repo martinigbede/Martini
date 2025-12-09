@@ -140,11 +140,13 @@ class ReservationService
                             'quantite' => 1,
                             'nb_personnes' => $itemData['nb_personnes'] ?? 1,
                             'lit_dappoint' => $itemData['lit_dappoint'] ?? false,
+                            'nb_lits_dappoint' => $itemData['nb_lits_dappoint'] ?? 0, 
                             'prix_unitaire' => $this->calculator::calculateTotal(
                                 $room->roomType->id,
                                 $itemData['lit_dappoint'] ?? false,
                                 $itemData['nb_personnes'] ?? 1,
-                                $days
+                                $days,
+                                $itemData['nb_lits_dappoint'] ?? 0
                             ),
                         ]
                     );
@@ -165,11 +167,13 @@ class ReservationService
                             'quantite' => 1,
                             'nb_personnes' => $payload['nb_personnes'] ?? 1,
                             'lit_dappoint' => $payload['lit_dappoint'] ?? false,
+                            'nb_lits_dappoint' => $payload['nb_lits_dappoint'] ?? 0, 
                             'prix_unitaire' => $this->calculator::calculateTotal(
                                 $room->roomType->id,
                                 $payload['lit_dappoint'] ?? false,
                                 $payload['nb_personnes'] ?? 1,
-                                $days
+                                $days,
+                                $payload['nb_lits_dappoint'] ?? 0
                             ),
                         ]
                     );

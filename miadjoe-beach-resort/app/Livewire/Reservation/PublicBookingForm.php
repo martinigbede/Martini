@@ -160,15 +160,28 @@ class PublicBookingForm extends Component
         $this->updateDays();
         $total = 0.0;
 
-        foreach ($this->reservationItems as $item) {
+        foreach ($this->reservationItems as $k => $item) {
             $room = $this->rooms->firstWhere('id', $item['room_id']);
-            if (! $room || ! $room->roomType) continue;
+            if (!$room || !$room->roomType) continue;
 
+            // Auto lit d’appoint en fonction du nombre de personnes max
+            $capacite = $room->roomType->nombre_personnes_max ?? 2;
+            $nbPersonnes = $item['nb_personnes'] ?? 1;
+
+            if ($nbPersonnes > $capacite) {
+                $this->reservationItems[$k]['lit_dappoint'] = true;
+                $this->reservationItems[$k]['nb_lits_dappoint'] = $nbPersonnes - $capacite;
+            } else {
+                $this->reservationItems[$k]['nb_lits_dappoint'] = 0;
+            }
+
+            // Calcul du total par ligne
             $lineTotal = ReservationCalculator::calculateTotal(
                 $room->roomType->id,
-                $item['lit_dappoint'] ?? false,
-                $item['nb_personnes'] ?? 1,
-                $this->days
+                $this->reservationItems[$k]['lit_dappoint'],
+                $this->reservationItems[$k]['nb_personnes'],
+                $this->days,
+                $this->reservationItems[$k]['nb_lits_dappoint'] ?? 0
             );
 
             $total += $lineTotal * ($item['quantite'] ?? 1);
@@ -216,6 +229,7 @@ class PublicBookingForm extends Component
                     'room_id' => $it['room_id'],
                     'nb_personnes' => $it['nb_personnes'],
                     'lit_dappoint' => $it['lit_dappoint'] ?? false,
+                    'nb_lits_dappoint' => $it['nb_lits_dappoint'] ?? 0,
                     'quantite' => $it['quantite'] ?? 1,
                 ], $this->reservationItems),
                 'nb_personnes' => $this->nb_personnes,
@@ -239,7 +253,7 @@ class PublicBookingForm extends Component
             }
 
             $reservation = $result['reservation'];
-
+            $this->dispatch('reservationSaved');
             // ✅ Paiement obligatoire (pay_now)
             $payment = Payment::create([
                 'reservation_id' => $reservation->id,
@@ -268,6 +282,7 @@ class PublicBookingForm extends Component
             \Log::error('PublicBookingForm::submit error: ' . $e->getMessage());
             $this->addError('general', 'Une erreur serveur est survenue.');
         }
+        
     }
 
     protected function resetFormAfterSuccess()

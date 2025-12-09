@@ -10,12 +10,12 @@ class ExpenseFormModal extends Component
 {
     public $expenseId;
     public $categorie = '';
-    public $categorie_autre = ''; // ✅ Nouveau champ pour saisie libre
+    public $categorie_autre = ''; 
     public $description = '';
     public $montant = '';
     public $date_depense;
     public $mode_paiement = 'Espèces';
-    public $statut = 'validée';
+    public $statut = 'en attente';
     public $showModal = true;
 
     // ✅ Liste des catégories proposées
@@ -76,7 +76,7 @@ class ExpenseFormModal extends Component
                 'montant', 'date_depense', 'mode_paiement', 'statut'
             ]);
             $this->mode_paiement = 'Espèces';
-            $this->statut = 'validée';
+            $this->statut = 'en attente';
         }
 
         $this->showModal = true;
@@ -109,15 +109,23 @@ class ExpenseFormModal extends Component
         if ($this->statut === 'validée') {
             $caisseType = 'Restaurant'; // ou dynamique selon contexte
 
-            \App\Models\CashAccount::updateOrCreate(
+            $cashAccount = \App\Models\CashAccount::firstOrCreate(
                 [
                     'type_caisse' => $caisseType,
                     'nom_compte' => $this->mode_paiement
                 ],
-                [
-                    'solde' => \DB::raw("solde - {$this->montant}")
-                ]
+                ['solde' => 0]
             );
+
+            // Enregistrer la transaction (addTransaction gère déjà le solde)
+            if ($this->statut === 'validée') {
+                $cashAccount->addTransaction(
+                    amount: $this->montant,
+                    type: 'sortie',
+                    description: "Dépense : {$categorieFinale}",
+                    userId: Auth::id()
+                );
+            }
         }
 
         $this->dispatch('expenseSaved');

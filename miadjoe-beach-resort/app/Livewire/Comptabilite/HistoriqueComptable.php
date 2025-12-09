@@ -21,6 +21,9 @@ class HistoriqueComptable extends Component
     public $dateFin;
     public $search = '';
     public $typeFiltre = 'tout'; // tout, facture, paiement, reservation, vente, service, depense
+    public $filterUser = ''; // ID de l'utilisateur
+    public $users; // liste des utilisateurs pour le select
+    public $activeTab = 'tout';
 
     protected $paginationTheme = 'tailwind';
 
@@ -28,6 +31,7 @@ class HistoriqueComptable extends Component
     {
         $this->dateDebut = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->dateFin = Carbon::now()->endOfMonth()->format('Y-m-d');
+        $this->users = \App\Models\User::select('id','name')->get();
     }
 
     public function render()
@@ -54,6 +58,7 @@ class HistoriqueComptable extends Component
                       ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$this->search}%"))
                       ->orWhereHas('reservation.client', fn($c) => $c->where('nom', 'like', "%{$this->search}%"));
                 })
+                ->when($this->filterUser, fn($q) => $q->where('user_id', $this->filterUser))
                 ->latest()
                 ->paginate(8);
         }

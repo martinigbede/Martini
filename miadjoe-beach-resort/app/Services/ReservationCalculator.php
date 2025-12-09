@@ -17,40 +17,32 @@ class ReservationCalculator
      *
      * @return float Montant total en CFA
      */
-    public static function calculateTotal(int $roomTypeId, $litDappoint, $personnes, $days)
+    public static function calculateTotal(int $roomTypeId, bool $litDappoint, int $personnes, int $days, int $nbLitsDappoint = 0)
     {
-        // 1️⃣ Récupération du type de chambre
+        // 1. Récupération du type de chambre
         $roomType = RoomType::findOrFail($roomTypeId);
 
-        // 2️⃣ Prix de base par nuit × nombre de nuits
+        // 2. Prix de base par nuit × nb nuits
         $basePrice = (float)($roomType->prix_base ?? 0) * $days;
 
-        // 3️⃣ Récupération dynamique des tarifs depuis la table settings
-        $litDappointTarif = (float)DB::table('settings')->where('key', 'lit_dappoint_tarif')->value('value') ?? 10000.00;
-        $taxeSejourTarif  = (float)DB::table('settings')->where('key', 'taxe_sejour_tarif')->value('value') ?? 1000.00;
+        // 3. Tarifs dynamiques
+        $litDappointTarif = (float)DB::table('settings')->where('key', 'lit_dappoint_tarif')->value('value') ?? 10000.0;
+        $taxeSejourTarif  = (float)DB::table('settings')->where('key', 'taxe_sejour_tarif')->value('value') ?? 1000.0;
 
-        // 4️⃣ Calcul du nombre de lits d’appoint nécessaires automatiquement
-        $capacity = (int)($roomType->nombre_personnes_max ?? 2);
-        $extraPersons = max(0, $personnes - $capacity);
+        // 4. Le lit d’appoint devient totalement optionnel
+        //    Le prix dépend uniquement du nombre de lits choisis
+        $litDappointCost = 0.0;
 
-        // Si dépassement de capacité, on ajoute automatiquement un lit d’appoint par personne en surplus
-        $litDappointCost = 0.00;
-        if ($extraPersons > 0) {
-            $litDappointCost = $extraPersons * $litDappointTarif * $days;
+        if ($litDappoint && $nbLitsDappoint > 0) {
+            $litDappointCost = $nbLitsDappoint * $litDappointTarif * $days;
         }
 
-        // Si l’utilisateur coche explicitement “lit d’appoint”, on ajoute au moins un lit même sans dépassement
-        if ($litDappoint && $extraPersons === 0) {
-            $litDappointCost += $litDappointTarif * $days;
-        }
-
-        // 5️⃣ TAXE DE SÉJOUR = taxe × nb personnes × nb nuits
+        // 5. Taxe de séjour = taxe × nb personnes × nb nuits
         $taxeSejourCost = $taxeSejourTarif * $personnes * $days;
 
-        // 6️⃣ TOTAL FINAL
+        // 6. Total final
         $total = $basePrice + $litDappointCost + $taxeSejourCost;
 
-        // 7️⃣ Retour arrondi
         return round($total, 2);
     }
 

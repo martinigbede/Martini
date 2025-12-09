@@ -55,6 +55,9 @@ class SaleFormModal extends Component
             'quantite' => 1,
             'prix_unitaire' => 0,
             'total' => 0,
+            'remise_type' => null,      // 'pourcentage' ou 'montant'
+            'remise_valeur' => 0,
+            'est_offert' => false,
         ]];
     }
 
@@ -87,6 +90,9 @@ class SaleFormModal extends Component
             'quantite' => $item->quantite,
             'prix_unitaire' => $item->prix_unitaire,
             'total' => $item->total,
+            'remise_type' => $item->remise_type,
+            'remise_valeur' => $item->remise_valeur,
+            'est_offert' => $item->est_offert,
         ])->toArray();
 
         // Charger les unités disponibles
@@ -105,7 +111,10 @@ class SaleFormModal extends Component
             'items.*.unite' => 'nullable|string',
             'items.*.quantite' => 'required|integer|min:1',
             'items.*.prix_unitaire' => 'required|numeric|min:0',
-            'items.*.total' => 'required|numeric|min:0.01',
+            'items.*.total' => 'required|numeric|min:0',
+            'items.*.remise_type' => 'nullable|in:pourcentage,montant',
+            'items.*.remise_valeur' => 'nullable|numeric|min:0',
+            'items.*.est_offert' => 'boolean',
             'date' => 'required|date',
         ];
     }
@@ -118,6 +127,9 @@ class SaleFormModal extends Component
             'quantite' => 1,
             'prix_unitaire' => 0,
             'total' => 0,
+            'remise_type' => null,      // 'pourcentage' ou 'montant'
+            'remise_valeur' => 0,
+            'est_offert' => false,
         ];
     }
 
@@ -172,7 +184,36 @@ class SaleFormModal extends Component
             }
 
             $item['prix_unitaire'] = $prixUnitaire;
-            $item['total'] = round($item['quantite'] * $prixUnitaire, 2);
+
+            // Total brut
+            $total = $item['quantite'] * $prixUnitaire;
+
+            // Article offert
+            if (!empty($item['est_offert']) && $item['est_offert'] === true) {
+                $item['remise_type'] = null;
+                $item['remise_valeur'] = 0;
+                $item['total'] = 0;
+                $this->total += 0;
+                continue;
+            }
+
+            // Application de la remise
+            if (!empty($item['remise_type']) && $item['remise_valeur'] > 0) {
+
+                if ($item['remise_type'] === 'pourcentage') {
+                    $remise = ($total * $item['remise_valeur']) / 100;
+                } else {
+                    $remise = $item['remise_valeur'];
+                }
+
+                $total -= $remise;
+
+                if ($total < 0) {
+                    $total = 0;
+                }
+            }
+
+            $item['total'] = round($total, 2);
 
             $this->total += $item['total'];
         }
@@ -204,6 +245,9 @@ class SaleFormModal extends Component
                     'prix_unitaire' => $item['prix_unitaire'],
                     'total' => $item['total'],
                     'unite' => $item['unite'] ?? null,
+                    'remise_type' => $item['remise_type'] ?? null,
+                    'remise_valeur' => $item['remise_valeur'] ?? 0,
+                    'est_offert' => $item['est_offert'] ?? false,
                 ]);
             }
 

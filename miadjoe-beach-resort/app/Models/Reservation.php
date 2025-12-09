@@ -125,13 +125,12 @@ class Reservation extends Model
         // Total payé (somme de tous les paiements liés)
         $totalPaye = $this->payments()->sum('montant');
 
-        // Si le total existe (pas nul) et qu’au moins 50% est payé
-        if ($this->total > 0 && $totalPaye >= ($this->total * 0.5)) {
+        // Si le total existe (pas nul) et qu’au moins 9.9% est payé
+        if ($this->total > 0 && $totalPaye >= ($this->total * 0.099)) {
             if ($this->statut !== 'Confirmée') {
                 $this->statut = 'Confirmée';
                 $this->saveQuietly(); // ✅ évite la boucle d'événements
             }
         }
     }
-
 }

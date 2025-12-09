@@ -113,26 +113,83 @@
     </table>
 
     <!-- 5. Décaissements / Encaissements -->
-    <h2>Décaissements / Encaissements</h2>
+    <h2>Mouvements de Caisse (Décaissements + Hors Vente)</h2>
     <table>
         <tr>
+            <th>Type</th>
             <th>ID</th>
             <th>Montant</th>
+            <th>Mode / Caisse</th>
             <th>Motif</th>
-            <th>Caisse</th>
-            <th>Encaisse</th>
+            <th>Utilisateur / Encaisse</th>
             <th>Date</th>
         </tr>
+
+        <!-- Décaissements -->
         @foreach($decaissements as $d)
         <tr>
+            <td>Décaissement</td>
             <td>{{ $d->id }}</td>
             <td class="right">{{ number_format($d->montant, 0, ',', ' ') }} FCFA</td>
-            <td>{{ $d->motif }}</td>
             <td>{{ $d->cashAccount?->nom_compte ?? '-' }}</td>
-            <td>{{ $d->est_encaisse ? 'Oui' : 'Non' }}</td>
+            <td>{{ $d->motif }}</td>
+            <td>{{ $d->est_encaisse ? 'Encaissé' : 'Non encaissé' }}; {{ $d->user?->name ?? '-' }} </td>
             <td>{{ $d->created_at->format('d/m/Y H:i') }}</td>
         </tr>
         @endforeach
+
+        <!-- Entrées hors vente -->
+        @foreach($horsVentes as $hv)
+        <tr>
+            <td>Hors Vente</td>
+            <td>{{ $hv->id }}</td>
+            <td class="right">{{ number_format($hv->montant, 0, ',', ' ') }} FCFA</td>
+            <td>{{ $hv->mode_paiement }}</td>
+            <td>{{ $hv->motif ?? '-' }}</td>
+            <td>{{ $hv->user?->name ?? '-' }}</td>
+            <td>{{ $hv->created_at->format('d/m/Y H:i') }}</td>
+        </tr>
+        @endforeach
+
+        <!-- Totaux -->
+        <tr class="subtotal">
+            <td colspan="7" class="right">
+                Total Décaissements :
+                <strong>{{ number_format($decaissements->sum('montant'), 0, ',', ' ') }} FCFA</strong>
+            </td>
+        </tr>
+
+        <tr class="subtotal">
+            <td colspan="7" class="right">
+                Total Encaissements :
+                <strong>
+                    {{ number_format($decaissements->where('est_encaisse', true)->sum('montant'), 0, ',', ' ') }} FCFA
+                </strong>
+            </td>
+        </tr>
+
+        <tr class="subtotal">
+            <td colspan="7" class="right">
+                Total Hors Vente :
+                <strong>{{ number_format($horsVentes->sum('montant'), 0, ',', ' ') }} FCFA</strong>
+            </td>
+        </tr>
+
+        <tr class="subtotal">
+            <td colspan="7" class="right">
+                Total Encaissements + Hors Vente :
+                <strong>
+                    {{
+                        number_format(
+                            $decaissements->where('est_encaisse', true)->sum('montant')
+                            + $horsVentes->sum('montant'),
+                            0, ',', ' '
+                        )
+                    }} FCFA
+                </strong>
+            </td>
+        </tr>
+
     </table>
 
     <!-- 6. Dépenses détaillées -->
@@ -156,37 +213,6 @@
             <td>{!! $depense->statut_badge !!}</td>
         </tr>
         @endforeach
-    </table>
-
-    <!-- 7. Entrées Hors Vente -->
-    <h2>Entrées Hors Vente</h2>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Montant</th>
-            <th>Mode de Paiement</th>
-            <th>Motif</th>
-            <th>Utilisateur</th>
-            <th>Date</th>
-        </tr>
-
-        @foreach($horsVentes as $hv)
-        <tr>
-            <td>{{ $hv->id }}</td>
-            <td class="right">{{ number_format($hv->montant, 0, ',', ' ') }} FCFA</td>
-            <td>{{ $hv->mode_paiement }}</td>
-            <td>{{ $hv->motif ?? '-' }}</td>
-            <td>{{ $hv->user?->name ?? '-' }}</td>
-            <td>{{ $hv->created_at->format('d/m/Y H:i') }}</td>
-        </tr>
-        @endforeach
-
-        <tr class="subtotal">
-            <td colspan="6" class="right">
-                Total Hors Vente :
-                <strong>{{ number_format($horsVentes->sum('montant'), 0, ',', ' ') }} FCFA</strong>
-            </td>
-        </tr>
     </table>
 
     <!-- 8. Légende & Explications -->

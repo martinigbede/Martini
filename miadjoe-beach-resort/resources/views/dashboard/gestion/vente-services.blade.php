@@ -66,9 +66,9 @@
                 <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-amber-600">Chiffre d'affaires</p>
+                            <p class="text-sm font-medium text-amber-600">Service Confirmé</p>
                             <p class="text-2xl font-bold text-amber-900 mt-1">
-                                {{ number_format(\App\Models\DiversServiceVente::sum('total') ?? 0, 0) }} FCFA
+                                {{ \App\Models\DiversServiceVente::where('statut', 'Payé')->count() }}
                             </p>
                         </div>
                         <div class="p-2 bg-amber-100 rounded-lg">
@@ -81,9 +81,9 @@
                 <div class="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-200">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-purple-600">Vente Moyenne</p>
+                            <p class="text-sm font-medium text-purple-600">Service non Confirmé</p>
                             <p class="text-2xl font-bold text-purple-900 mt-1">
-                                {{ number_format(\App\Models\DiversServiceVente::avg('total') ?? 0, 0) }} FCFA
+                                {{ \App\Models\DiversServiceVente::where('statut', 'en_attente')->count() }}
                             </p>
                         </div>
                         <div class="p-2 bg-purple-100 rounded-lg">

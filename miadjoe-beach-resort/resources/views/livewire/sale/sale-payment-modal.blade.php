@@ -31,6 +31,8 @@
                         <select wire:model="modePaiement"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2">
                             <option>Espèces</option>
+                            <option>Flooz</option>
+                            <option>Mix by Yas</option>
                             <option>Mobile Money</option>
                             <option>Carte/TPE</option>
                             <option>Virement</option>
@@ -50,6 +52,8 @@
                         <select wire:model="modePaiement"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2">
                             <option>Espèces</option>
+                            <option>Flooz</option>
+                            <option>Mix by Yas</option>
                             <option>Mobile Money</option>
                             <option>Carte/TPE</option>
                             <option>Virement</option>

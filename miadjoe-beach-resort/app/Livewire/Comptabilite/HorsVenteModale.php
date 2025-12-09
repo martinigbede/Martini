@@ -6,6 +6,8 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\HorsVente;
 use App\Models\CashAccount;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class HorsVenteModale extends Component
 {
@@ -43,28 +45,37 @@ class HorsVenteModale extends Component
             'mode_paiement' => 'required',
         ]);
 
-        // 1. Enregistrer l'apport hors vente
-        $entry = HorsVente::create([
-            'montant'       => $this->montant,
-            'mode_paiement' => $this->mode_paiement,
-            'motif'         => $this->motif,
-            'user_id'       => auth()->id(),
-        ]);
+        DB::transaction(function () {
 
-        // 2. Ajouter automatiquement dans la caisse Restaurant
-        CashAccount::updateOrCreate(
-            [
-                'type_caisse' => 'Restaurant',
-                'nom_compte'  => $this->mode_paiement,
-            ],
-            [
-                'solde' => \DB::raw('solde + '.$this->montant)
-            ]
-        );
+            // 1. Enregistrement hors vente
+            $entry = HorsVente::create([
+                'montant'       => $this->montant,
+                'mode_paiement' => $this->mode_paiement,
+                'motif'         => $this->motif,
+                'user_id'       => Auth::id(),
+            ]);
+
+            // 2. Récupération ou création du compte caisse
+            $caisse = CashAccount::firstOrCreate(
+                [
+                    'type_caisse' => 'Restaurant',
+                    'nom_compte'  => $this->mode_paiement,
+                ],
+                ['solde' => 0]
+            );
+
+            // 3. Ajout d'une transaction standardisée
+            $caisse->addTransaction(
+                $this->montant,
+                'entree',
+                "Apport hors vente #{$entry->id} : {$this->motif}",
+                Auth::id()
+            );
+        });
 
         session()->flash('success', 'Apport hors vente enregistré avec succès.');
         $this->showModal = false;
-        // Notifier le parent
+
         $this->dispatch('refresh-data');
     }
 

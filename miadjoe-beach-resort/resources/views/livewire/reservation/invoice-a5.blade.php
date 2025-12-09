@@ -138,7 +138,7 @@
 
     <h2>Résumé financier</h2>
     <div class="summary">
-        <p>Montant facturé : {{ number_format($reservation->invoice->montant_total,0,',',' ') }} FCFA</p>
+        {{-- <p>Montant facturé : {{ number_format($reservation->invoice->montant_total,0,',',' ') }} FCFA</p> --}}
 
         @if($reservation->invoice->is_remise || $reservation->invoice->montant_final < $reservation->invoice->montant_total)
         <p>Remise / Offre : 
